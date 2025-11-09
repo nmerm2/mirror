@@ -1,0 +1,77 @@
+<script setup lang="ts">
+import type { CanvasSize } from '@/stores/drawing'
+
+interface Props {
+  canvasSize: CanvasSize
+}
+
+interface Emits {
+  (e: 'change', size: CanvasSize): void
+}
+
+defineProps<Props>()
+const emit = defineEmits<Emits>()
+
+function handleSizeChange(size: CanvasSize) {
+  emit('change', size)
+}
+</script>
+
+<template>
+  <div>
+    <label class="block text-xs font-semibold text-gray-700 mb-1">Canvas</label>
+    <div class="flex flex-col gap-1">
+      <button
+        @click="handleSizeChange('landscape')"
+        :class="[
+          'w-full',
+          'px-2',
+          'py-1',
+          'text-xs',
+          'border-2',
+          'transition-all',
+          canvasSize === 'landscape'
+            ? 'bg-blue-500 text-white border-blue-500 font-bold'
+            : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+        ]"
+        title="Landscape 4:3"
+      >
+        4:3
+      </button>
+      <button
+        @click="handleSizeChange('portrait')"
+        :class="[
+          'w-full',
+          'px-2',
+          'py-1',
+          'text-xs',
+          'border-2',
+          'transition-all',
+          canvasSize === 'portrait'
+            ? 'bg-blue-500 text-white border-blue-500 font-bold'
+            : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+        ]"
+        title="Portrait 3:4"
+      >
+        3:4
+      </button>
+      <button
+        @click="handleSizeChange('square')"
+        :class="[
+          'w-full',
+          'px-2',
+          'py-1',
+          'text-xs',
+          'border-2',
+          'transition-all',
+          canvasSize === 'square'
+            ? 'bg-blue-500 text-white border-blue-500 font-bold'
+            : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+        ]"
+        title="Square 1:1"
+      >
+        1:1
+      </button>
+    </div>
+  </div>
+</template>
