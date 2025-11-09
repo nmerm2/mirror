@@ -1,5 +1,5 @@
 import { ref, type Ref } from 'vue'
-import { useDrawingStore } from '@/stores/drawing'
+import { useDrawingStore } from '~/stores/drawing'
 
 export function useFileOperations(canvasEl: Ref<HTMLCanvasElement | null>) {
   const store = useDrawingStore()

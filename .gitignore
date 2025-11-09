@@ -5,6 +5,7 @@
 .nitro
 .cache
 dist
+dist-ssr
 
 # Node dependencies
 node_modules
@@ -12,11 +13,41 @@ node_modules
 # Logs
 logs
 *.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
 
 # Misc
 .DS_Store
 .fleet
 .idea
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+*.local
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+
+# TypeScript
+*.tsbuildinfo
+
+# ESLint
+.eslintcache
+
+# Test coverage
+coverage
+__screenshots__/
+
+# Cypress
+/cypress/videos/
+/cypress/screenshots/
 
 # Local env files
 .env

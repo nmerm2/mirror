@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { MirrorMode } from '@/stores/drawing'
+import type { MirrorMode } from '~/stores/drawing'
 
 interface Props {
   mirrorMode: MirrorMode

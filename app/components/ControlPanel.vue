@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { useDrawingStore } from '@/stores/drawing'
+import { useDrawingStore } from '~/stores/drawing'
 import ToolSelector from './controls/ToolSelector.vue'
 import ColorPicker from './controls/ColorPicker.vue'
 import MirrorControls from './controls/MirrorControls.vue'

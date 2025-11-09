@@ -1,5 +1,5 @@
 import { type Ref } from 'vue'
-import { useDrawingStore, SNAP_DISTANCE, type Point } from '@/stores/drawing'
+import { useDrawingStore, SNAP_DISTANCE, type Point } from '~/stores/drawing'
 
 export function useCoordinateTransform(
   canvasEl: Ref<HTMLCanvasElement | null>,

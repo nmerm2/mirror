@@ -1,5 +1,5 @@
 import { type Ref } from 'vue'
-import { useDrawingStore } from '@/stores/drawing'
+import { useDrawingStore } from '~/stores/drawing'
 
 export function useZoomPan(containerEl: Ref<HTMLDivElement | null>) {
   const store = useDrawingStore()

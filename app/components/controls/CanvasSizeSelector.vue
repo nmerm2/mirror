@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { CanvasSize } from '@/stores/drawing'
+import type { CanvasSize } from '~/stores/drawing'
 
 interface Props {
   canvasSize: CanvasSize

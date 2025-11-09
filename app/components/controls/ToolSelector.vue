@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { DrawingTool } from '@/stores/drawing'
+import type { DrawingTool } from '~/stores/drawing'
 
 interface Props {
   selectedTool: DrawingTool
