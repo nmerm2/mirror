@@ -6,6 +6,7 @@ interface Props {
 interface Emits {
   (e: 'cancel'): void
   (e: 'clear'): void
+  (e: 'invert'): void
   (e: 'import'): void
   (e: 'export'): void
 }
@@ -28,6 +29,12 @@ const emit = defineEmits<Emits>()
       class="w-full px-2 py-2 bg-red-500 text-white border border-red-600 text-xs font-semibold hover:bg-red-600 transition-all"
     >
       Clear
+    </button>
+    <button
+      @click="emit('invert')"
+      class="w-full px-2 py-2 bg-purple-500 text-white border border-purple-600 text-xs font-semibold hover:bg-purple-600 transition-all"
+    >
+      Invert
     </button>
     <button
       @click="emit('import')"

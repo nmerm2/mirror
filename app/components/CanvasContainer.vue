@@ -21,7 +21,10 @@ const props = defineProps<Props>()
 
 const containerEl = ref<HTMLDivElement | null>(null)
 
-const cursorStyle = computed(() => (props.isPanning ? 'grabbing' : 'default'))
+const cursorStyle = computed(() => {
+  if (props.isPanning) return 'grabbing'
+  return 'crosshair'
+})
 
 defineExpose({
   containerEl
@@ -32,7 +35,7 @@ defineExpose({
   <div class="flex-1 flex items-center justify-center min-w-0">
     <div
       ref="containerEl"
-      class="relative border-4 border-gray-300 bg-gray-400 overflow-hidden"
+      class="relative border-4 border-gray-300 dark:border-gray-600 bg-gray-400 dark:bg-gray-700 overflow-hidden transition-colors"
       :style="{
         cursor: cursorStyle,
         maxWidth: '100%',

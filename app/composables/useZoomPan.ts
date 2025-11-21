@@ -60,6 +60,7 @@ export function useZoomPan(containerEl: Ref<HTMLDivElement | null>) {
   }
 
   function handleWheel(e: WheelEvent) {
+    e.preventDefault()
     const delta = e.deltaY > 0 ? -0.1 : 0.1
     handleZoom(delta, e.clientX, e.clientY)
   }

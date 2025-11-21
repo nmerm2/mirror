@@ -425,6 +425,28 @@ function clearCanvas() {
   store.cancelPolygon()
 }
 
+// Invert colors (negative)
+function invertColors() {
+  const canvas = canvasEl.value
+  if (!canvas) return
+
+  const ctx = canvas.getContext('2d')
+  if (!ctx) return
+
+  const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height)
+  const data = imageData.data
+
+  // Invert each pixel
+  for (let i = 0; i < data.length; i += 4) {
+    data[i] = 255 - data[i]         // Red
+    data[i + 1] = 255 - data[i + 1] // Green
+    data[i + 2] = 255 - data[i + 2] // Blue
+    // data[i + 3] is alpha, leave unchanged
+  }
+
+  ctx.putImageData(imageData, 0, 0)
+}
+
 // Cancel polygon
 function cancelPolygon() {
   const canvas = canvasEl.value
@@ -456,12 +478,35 @@ function handleBeforeUnload(e: BeforeUnloadEvent) {
 onMounted(() => {
   initializeCanvas()
 
+  // Attach event listeners to container for polygon drawing outside canvas
+  const container = containerEl.value
+  if (container) {
+    container.addEventListener('click', handleClick)
+    container.addEventListener('dblclick', handleDoubleClick)
+    container.addEventListener('mousedown', handleMouseDown)
+    container.addEventListener('mousemove', draw)
+    container.addEventListener('mouseup', handleMouseUp)
+    container.addEventListener('mouseleave', handleMouseLeave)
+    container.addEventListener('wheel', handleWheel, { passive: false })
+  }
+
   window.addEventListener('mouseup', handleGlobalMouseUp)
   window.addEventListener('beforeunload', handleBeforeUnload)
   window.addEventListener('keydown', handleKeyDown)
 })
 
 onBeforeUnmount(() => {
+  const container = containerEl.value
+  if (container) {
+    container.removeEventListener('click', handleClick)
+    container.removeEventListener('dblclick', handleDoubleClick)
+    container.removeEventListener('mousedown', handleMouseDown)
+    container.removeEventListener('mousemove', draw)
+    container.removeEventListener('mouseup', handleMouseUp)
+    container.removeEventListener('mouseleave', handleMouseLeave)
+    container.removeEventListener('wheel', handleWheel)
+  }
+
   window.removeEventListener('mouseup', handleGlobalMouseUp)
   window.removeEventListener('beforeunload', handleBeforeUnload)
   window.removeEventListener('keydown', handleKeyDown)
@@ -469,9 +514,9 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div class="h-screen flex overflow-hidden p-4 gap-4 bg-white">
+  <div class="h-screen flex overflow-hidden p-4 gap-4 bg-white dark:bg-gray-900 transition-colors">
     <!-- Control Panel -->
-    <ControlPanel @cancel-polygon="cancelPolygon" @clear-canvas="clearCanvas" @import-p-n-g="importPNG" @export-p-n-g="exportAsPNG" @canvas-size-change="handleCanvasSizeChange" @set-drawing-tool="setDrawingTool" @zoom-in="zoomOnCenter(0.5)" @zoom-out="zoomOnCenter(-0.5)" @reset-zoom="resetZoom" />
+    <ControlPanel @cancel-polygon="cancelPolygon" @clear-canvas="clearCanvas" @invert-colors="invertColors" @import-p-n-g="importPNG" @export-p-n-g="exportAsPNG" @canvas-size-change="handleCanvasSizeChange" @set-drawing-tool="setDrawingTool" @zoom-in="zoomOnCenter(0.5)" @zoom-out="zoomOnCenter(-0.5)" @reset-zoom="resetZoom" />
 
     <!-- Hidden file input -->
     <input ref="fileInputEl" type="file" accept="image/*" @change="handleFileImport" style="display: none" />
@@ -479,7 +524,7 @@ onBeforeUnmount(() => {
     <!-- Canvas Container -->
     <CanvasContainer ref="canvasContainerRef" :aspect-ratio="containerAspectRatio" :zoom="store.zoom" :pan-offset="store.panOffset" :is-panning="store.isPanning" :show-grid="store.showGrid" :grid-size="store.gridSize" :canvas-width="store.currentDimensions.width" :canvas-height="store.currentDimensions.height" :show-mirror-lines="store.showMirrorLines" :mirror-mode="store.mirrorMode">
       <!-- Drawing Canvas -->
-      <canvas ref="canvasEl" @click="handleClick" @dblclick="handleDoubleClick" @mousedown="handleMouseDown" @mousemove="draw" @mouseup="handleMouseUp" @mouseleave="handleMouseLeave" @wheel.prevent="handleWheel" class="cursor-crosshair w-full h-full" :style="{
+      <canvas ref="canvasEl" class="w-full h-full pointer-events-none" :style="{
         touchAction: 'none',
         transform: `translate(${store.panOffset.x}px, ${store.panOffset.y}px) scale(${store.zoom})`,
         transformOrigin: '0 0'

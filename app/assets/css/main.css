@@ -1,11 +1,18 @@
 @import "tailwindcss";
 
+@variant dark (&:where(.dark, .dark *));
+
 body {
   font-family: 'Inter', sans-serif;
   background-color: #f0f2f5;
   overflow: hidden;
   margin: 0;
   padding: 0;
+  transition: background-color 0.3s ease;
+}
+
+.dark body {
+  background-color: #0f172a;
 }
 
 #app {
@@ -22,6 +29,14 @@ body {
   border-radius: 20px;
 }
 
+.dark .controls-scrollbar::-webkit-scrollbar-thumb {
+  background-color: #475569;
+}
+
 .controls-scrollbar::-webkit-scrollbar-track {
   background-color: #f1f5f9;
+}
+
+.dark .controls-scrollbar::-webkit-scrollbar-track {
+  background-color: #1e293b;
 }

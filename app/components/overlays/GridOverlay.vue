@@ -13,7 +13,7 @@ const props = defineProps<Props>()
 const gridLines = computed(() => {
   if (!props.show) return []
 
-  const lines: Array<{ key: string; style: Record<string, string> }> = []
+  const lines: Array<{ key: string; isMajor: boolean; style: Record<string, string> }> = []
   const majorInterval = 200
   const extension = 20
 
@@ -23,15 +23,13 @@ const gridLines = computed(() => {
     const percentX = (x / props.canvasWidth) * 100
     lines.push({
       key: `v-${x}`,
+      isMajor,
       style: {
         position: 'absolute',
         left: `${percentX}%`,
         top: `-${extension}px`,
         width: isMajor ? '1.5px' : '0.5px',
         height: `calc(100% + ${extension * 2}px)`,
-        backgroundColor: isMajor ? '#b0b0b0' : '#e0e0e0',
-        mixBlendMode: 'multiply',
-        opacity: '0.5'
       }
     })
   }
@@ -42,15 +40,13 @@ const gridLines = computed(() => {
     const percentY = (y / props.canvasHeight) * 100
     lines.push({
       key: `h-${y}`,
+      isMajor,
       style: {
         position: 'absolute',
         top: `${percentY}%`,
         left: `-${extension}px`,
         height: isMajor ? '1.5px' : '0.5px',
         width: `calc(100% + ${extension * 2}px)`,
-        backgroundColor: isMajor ? '#b0b0b0' : '#e0e0e0',
-        mixBlendMode: 'multiply',
-        opacity: '0.5'
       }
     })
   }
@@ -61,6 +57,11 @@ const gridLines = computed(() => {
 
 <template>
   <template v-if="show && gridLines.length > 0">
-    <div v-for="line in gridLines" :key="line.key" :style="line.style"></div>
+    <div
+      v-for="line in gridLines"
+      :key="line.key"
+      :style="line.style"
+      :class="line.isMajor ? 'bg-gray-400 dark:bg-gray-500 opacity-50' : 'bg-gray-300 dark:bg-gray-600 opacity-50'"
+    ></div>
   </template>
 </template>
