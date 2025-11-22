@@ -9,5 +9,8 @@ export default defineNuxtConfig({
   vite: { plugins: [tailwindcss(),], },
   colorMode: {
     classSuffix: ''
+  },
+  app: {
+    baseURL: process.env.NODE_ENV === 'production' ? '/mirror/' : '/',
   }
 })
