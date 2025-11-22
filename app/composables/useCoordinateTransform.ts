@@ -1,4 +1,4 @@
-import { type Ref } from 'vue'
+import type { Ref } from 'vue'
 import { useDrawingStore, SNAP_DISTANCE, type Point } from '~/stores/drawing'
 
 export function useCoordinateTransform(

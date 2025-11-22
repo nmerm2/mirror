@@ -22,7 +22,6 @@ function handleSizeChange(size: CanvasSize) {
     <label class="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">Canvas</label>
     <div class="flex flex-col gap-1">
       <button
-        @click="handleSizeChange('landscape')"
         :class="[
           'w-full',
           'px-2',
@@ -35,11 +34,11 @@ function handleSizeChange(size: CanvasSize) {
             : 'bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600'
         ]"
         title="Landscape 4:3"
+        @click="handleSizeChange('landscape')"
       >
         4:3
       </button>
       <button
-        @click="handleSizeChange('portrait')"
         :class="[
           'w-full',
           'px-2',
@@ -52,11 +51,11 @@ function handleSizeChange(size: CanvasSize) {
             : 'bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600'
         ]"
         title="Portrait 3:4"
+        @click="handleSizeChange('portrait')"
       >
         3:4
       </button>
       <button
-        @click="handleSizeChange('square')"
         :class="[
           'w-full',
           'px-2',
@@ -69,6 +68,7 @@ function handleSizeChange(size: CanvasSize) {
             : 'bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600'
         ]"
         title="Square 1:1"
+        @click="handleSizeChange('square')"
       >
         1:1
       </button>

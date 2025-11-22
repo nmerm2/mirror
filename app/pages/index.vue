@@ -4,8 +4,12 @@ import { useDrawingStore, SNAP_DISTANCE, type Point } from '~/stores/drawing'
 import { useFileOperations } from '~/composables/useFileOperations'
 import { useCoordinateTransform } from '~/composables/useCoordinateTransform'
 import { useZoomPan } from '~/composables/useZoomPan'
+import { useLibrary, type SavedDrawing } from '~/composables/useLibrary'
+import HeaderBar from '~/components/HeaderBar.vue'
 import ControlPanel from '~/components/ControlPanel.vue'
 import CanvasContainer from '~/components/CanvasContainer.vue'
+import BottomToolbar from '~/components/BottomToolbar.vue'
+import LibraryModal from '~/components/library/LibraryModal.vue'
 
 const store = useDrawingStore()
 
@@ -18,12 +22,21 @@ const containerEl = computed(() => canvasContainerRef.value?.containerEl ?? null
 
 // Composables
 const { fileInputEl, hasCanvasContent, exportAsPNG, importPNG, handleFileImport } =
-  useFileOperations(canvasEl)
+  useFileOperations(canvasEl, () => {
+    const canvas = canvasEl.value
+    if (canvas) saveDrawing(canvas)
+  })
 
 const { getCanvasCoordinates } = useCoordinateTransform(canvasEl, containerEl)
 
 const { handlePanStart, handlePanMove, handlePanEnd, handleGlobalMouseUp, handleWheel, zoomOnCenter, resetZoom } =
   useZoomPan(containerEl)
+
+const { saveDrawing, listDrawings, loadDrawing, deleteDrawing, renameDrawing, downloadDrawing } = useLibrary()
+
+// Library state
+const showLibrary = ref(false)
+const libraryDrawings = ref<SavedDrawing[]>([])
 
 // Computed
 const containerAspectRatio = computed(() => store.currentDimensions.aspectRatio)
@@ -214,7 +227,7 @@ function handlePolygonClick(e: MouseEvent) {
   drawMirroredPolygon(ctx, store.polygonPoints, false)
 }
 
-function handleDoubleClick(e: MouseEvent) {
+function handleDoubleClick(_e: MouseEvent) {
   if (
     store.drawingTool === 'polygon' &&
     store.isDrawingPolygon &&
@@ -462,16 +475,94 @@ function cancelPolygon() {
   store.cancelPolygon()
 }
 
+// Library functions
+function handleSaveDrawing() {
+  const canvas = canvasEl.value
+  if (!canvas) return
+
+  if (!hasCanvasContent()) {
+    alert('Canvas is empty. Draw something first!')
+    return
+  }
+
+  saveDrawing(canvas)
+  alert('Drawing saved to library!')
+}
+
+function openLibrary() {
+  libraryDrawings.value = listDrawings()
+  showLibrary.value = true
+}
+
+function closeLibrary() {
+  showLibrary.value = false
+}
+
+async function handleLoadDrawing(drawing: SavedDrawing) {
+  // Prompt to save current drawing if it has content
+  if (hasCanvasContent()) {
+    const shouldSave = window.confirm(
+      'Your current canvas has unsaved changes. Would you like to save before loading?'
+    )
+    if (shouldSave) {
+      const canvas = canvasEl.value
+      if (canvas) {
+        saveDrawing(canvas)
+        alert('Drawing saved to library!')
+      }
+    } else {
+      const shouldContinue = window.confirm(
+        'Loading a drawing will replace your current canvas. Continue?'
+      )
+      if (!shouldContinue) {
+        return
+      }
+    }
+  }
+
+  const canvas = canvasEl.value
+  if (!canvas) return
+
+  try {
+    await loadDrawing(drawing, canvas, initializeCanvas)
+    closeLibrary()
+  } catch (error) {
+    console.error('Error loading drawing:', error)
+    alert('Failed to load drawing. Please try again.')
+  }
+}
+
+function handleDeleteDrawing(id: string) {
+  deleteDrawing(id)
+  libraryDrawings.value = listDrawings()
+}
+
+function handleRenameDrawing(payload: { id: string; newName: string }) {
+  renameDrawing(payload.id, payload.newName)
+  libraryDrawings.value = listDrawings()
+}
+
+function handleDownloadDrawing(drawing: SavedDrawing) {
+  downloadDrawing(drawing)
+}
+
 // Keyboard handlers
 function handleKeyDown(e: KeyboardEvent) {
-  if (e.key === 'Escape' && store.isDrawingPolygon) {
-    cancelPolygon()
+  if (e.key === 'Escape') {
+    if (showLibrary.value) {
+      closeLibrary()
+    } else if (store.isDrawingPolygon) {
+      cancelPolygon()
+    }
   }
 }
 
 function handleBeforeUnload(e: BeforeUnloadEvent) {
-  e.preventDefault()
-  e.returnValue = ''
+  // Only prevent unload if canvas has content
+  if (hasCanvasContent()) {
+    e.preventDefault()
+    e.returnValue = ''
+  }
 }
 
 // Lifecycle
@@ -514,21 +605,34 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div class="h-screen flex overflow-hidden p-4 gap-4 bg-white dark:bg-gray-900 transition-colors">
-    <!-- Control Panel -->
-    <ControlPanel @cancel-polygon="cancelPolygon" @clear-canvas="clearCanvas" @invert-colors="invertColors" @import-p-n-g="importPNG" @export-p-n-g="exportAsPNG" @canvas-size-change="handleCanvasSizeChange" @set-drawing-tool="setDrawingTool" @zoom-in="zoomOnCenter(0.5)" @zoom-out="zoomOnCenter(-0.5)" @reset-zoom="resetZoom" />
+  <div class="h-screen flex flex-col overflow-hidden bg-white dark:bg-gray-900 transition-colors">
+    <!-- Header Bar -->
+    <HeaderBar :canvas-size="store.canvasSize" @save="handleSaveDrawing" @library="openLibrary" @import="importPNG" @export="exportAsPNG" @clear="clearCanvas" @invert="invertColors" @canvas-size-change="handleCanvasSizeChange" />
 
-    <!-- Hidden file input -->
-    <input ref="fileInputEl" type="file" accept="image/*" @change="handleFileImport" style="display: none" />
+    <!-- Main Content Area -->
+    <div class="flex-1 flex overflow-hidden p-4 gap-4">
+      <!-- Control Panel -->
+      <ControlPanel @cancel-polygon="cancelPolygon" @set-drawing-tool="setDrawingTool" />
 
-    <!-- Canvas Container -->
-    <CanvasContainer ref="canvasContainerRef" :aspect-ratio="containerAspectRatio" :zoom="store.zoom" :pan-offset="store.panOffset" :is-panning="store.isPanning" :show-grid="store.showGrid" :grid-size="store.gridSize" :canvas-width="store.currentDimensions.width" :canvas-height="store.currentDimensions.height" :show-mirror-lines="store.showMirrorLines" :mirror-mode="store.mirrorMode">
-      <!-- Drawing Canvas -->
-      <canvas ref="canvasEl" class="w-full h-full pointer-events-none" :style="{
-        touchAction: 'none',
-        transform: `translate(${store.panOffset.x}px, ${store.panOffset.y}px) scale(${store.zoom})`,
-        transformOrigin: '0 0'
-      }"></canvas>
-    </CanvasContainer>
+      <!-- Hidden file input -->
+      <input ref="fileInputEl" type="file" accept="image/*" style="display: none" @change="handleFileImport" >
+
+      <!-- Canvas Container -->
+      <CanvasContainer ref="canvasContainerRef" :aspect-ratio="containerAspectRatio" :zoom="store.zoom" :pan-offset="store.panOffset" :is-panning="store.isPanning" :show-grid="store.showGrid" :grid-size="store.gridSize" :canvas-width="store.currentDimensions.width" :canvas-height="store.currentDimensions.height" :show-mirror-lines="store.showMirrorLines" :mirror-mode="store.mirrorMode">
+        <!-- Drawing Canvas -->
+        <canvas
+  ref="canvasEl" class="w-full h-full pointer-events-none" :style="{
+          touchAction: 'none',
+          transform: `translate(${store.panOffset.x}px, ${store.panOffset.y}px) scale(${store.zoom})`,
+          transformOrigin: '0 0'
+        }"/>
+      </CanvasContainer>
+    </div>
+
+    <!-- Bottom Toolbar -->
+    <BottomToolbar :zoom="store.zoom" @zoom-in="zoomOnCenter(0.5)" @zoom-out="zoomOnCenter(-0.5)" @reset-zoom="resetZoom" />
+
+    <!-- Library Modal -->
+    <LibraryModal v-if="showLibrary" :drawings="libraryDrawings" @close="closeLibrary" @load="handleLoadDrawing" @delete="handleDeleteDrawing" @rename="handleRenameDrawing" @download="handleDownloadDrawing" />
   </div>
 </template>

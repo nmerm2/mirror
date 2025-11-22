@@ -20,7 +20,6 @@ function selectColor(color: string) {
     <label class="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">Color</label>
     <div class="flex gap-2 px-1">
       <button
-        @click="selectColor('black')"
         :class="[
           'h-6',
           'flex-1',
@@ -33,10 +32,9 @@ function selectColor(color: string) {
             : 'bg-black text-white border-gray-300 dark:border-gray-600 hover:opacity-80'
         ]"
         title="Black"
-      >
-      </button>
+        @click="selectColor('black')"
+      />
       <button
-        @click="selectColor('white')"
         :class="[
           'h-6',
           'flex-1',
@@ -49,8 +47,8 @@ function selectColor(color: string) {
             : 'bg-white text-black border-gray-300 dark:border-gray-600 hover:opacity-80'
         ]"
         title="White (Eraser)"
-      >
-      </button>
+        @click="selectColor('white')"
+      />
     </div>
   </div>
 </template>

@@ -4,22 +4,11 @@ import ToolSelector from './controls/ToolSelector.vue'
 import ColorPicker from './controls/ColorPicker.vue'
 import MirrorControls from './controls/MirrorControls.vue'
 import GridControls from './controls/GridControls.vue'
-import CanvasSizeSelector from './controls/CanvasSizeSelector.vue'
-import ZoomControls from './controls/ZoomControls.vue'
-import ActionButtons from './controls/ActionButtons.vue'
-import ThemeToggle from './controls/ThemeToggle.vue'
+import SectionLabel from './controls/SectionLabel.vue'
 
 interface Emits {
   (e: 'cancelPolygon'): void
-  (e: 'clearCanvas'): void
-  (e: 'invertColors'): void
-  (e: 'importPNG'): void
-  (e: 'exportPNG'): void
-  (e: 'canvasSizeChange', size: typeof store.canvasSize): void
   (e: 'setDrawingTool', tool: typeof store.drawingTool): void
-  (e: 'zoomIn'): void
-  (e: 'zoomOut'): void
-  (e: 'resetZoom'): void
 }
 
 const store = useDrawingStore()
@@ -27,21 +16,49 @@ const emit = defineEmits<Emits>()
 </script>
 
 <template>
-  <div class="flex-shrink-0 bg-white dark:bg-gray-900 flex flex-col gap-2 overflow-y-auto controls-scrollbar transition-colors">
-    <ToolSelector :selected-tool="store.drawingTool" @update:selected-tool="emit('setDrawingTool', $event)" />
+  <div
+    class="w-32 flex-shrink-0 bg-white dark:bg-gray-900 flex flex-col overflow-y-auto controls-scrollbar transition-colors"
+  >
+    <!-- Tools Section -->
+    <SectionLabel label="Tools" :first="true" />
+    <div class="space-y-1.5">
+      <ToolSelector
+        :selected-tool="store.drawingTool"
+        @update:selected-tool="emit('setDrawingTool', $event)"
+      />
+      <ColorPicker
+        :selected-color="store.color"
+        @update:selected-color="store.setColor($event as typeof store.color)"
+      />
+    </div>
 
-    <ColorPicker :selected-color="store.color" @update:selected-color="store.setColor($event as typeof store.color)" />
+    <!-- Settings Section -->
+    <SectionLabel label="Settings" :first="false" />
+    <div class="space-y-1.5">
+      <MirrorControls
+        :mirror-mode="store.mirrorMode"
+        :show-mirror-lines="store.showMirrorLines"
+        @update:mirror-mode="store.mirrorMode = $event"
+        @update:show-mirror-lines="store.showMirrorLines = $event"
+      />
+      <GridControls
+        :grid-size="store.gridSize"
+        :show-grid="store.showGrid"
+        :snap-to-grid="store.snapToGrid"
+        @update:grid-size="store.gridSize = $event"
+        @update:show-grid="store.showGrid = $event"
+        @update:snap-to-grid="store.snapToGrid = $event"
+      />
+    </div>
 
-    <MirrorControls :mirror-mode="store.mirrorMode" :show-mirror-lines="store.showMirrorLines" @update:mirror-mode="store.mirrorMode = $event" @update:show-mirror-lines="store.showMirrorLines = $event" />
-
-    <GridControls :grid-size="store.gridSize" :show-grid="store.showGrid" :snap-to-grid="store.snapToGrid" @update:grid-size="store.gridSize = $event" @update:show-grid="store.showGrid = $event" @update:snap-to-grid="store.snapToGrid = $event" />
-
-    <CanvasSizeSelector :canvas-size="store.canvasSize" @change="emit('canvasSizeChange', $event)" />
-
-    <ZoomControls :zoom="store.zoom" @zoom-in="emit('zoomIn')" @zoom-out="emit('zoomOut')" @reset-zoom="emit('resetZoom')" />
-
-    <ThemeToggle />
-
-    <ActionButtons :is-drawing-polygon="store.isDrawingPolygon" @cancel="emit('cancelPolygon')" @clear="emit('clearCanvas')" @invert="emit('invertColors')" @import="emit('importPNG')" @export="emit('exportPNG')" />
+    <!-- Cancel button (conditional, appears during polygon drawing) -->
+    <div v-if="store.isDrawingPolygon" class="flex-1 flex flex-col justify-end">
+      <button
+        class="w-full px-2 py-1.5 bg-orange-500 text-white border border-orange-600 text-xs font-semibold hover:bg-orange-600 transition-all"
+        @click="emit('cancelPolygon')"
+      >
+        Cancel Polygon
+      </button>
+    </div>
   </div>
 </template>

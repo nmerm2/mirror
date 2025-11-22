@@ -64,7 +64,7 @@ defineExpose({
       </div>
 
       <!-- Canvas slot -->
-      <slot></slot>
+      <slot/>
     </div>
   </div>
 </template>

@@ -13,9 +13,9 @@ function toggleTheme() {
     <div>
       <label class="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">Theme</label>
       <button
-        @click="toggleTheme"
         class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600 transition-all flex items-center justify-center gap-2"
         :title="colorMode.value === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'"
+        @click="toggleTheme"
       >
       <svg
         v-if="colorMode.value === 'dark'"

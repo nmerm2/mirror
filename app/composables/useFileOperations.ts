@@ -1,7 +1,10 @@
 import { ref, type Ref } from 'vue'
 import { useDrawingStore } from '~/stores/drawing'
 
-export function useFileOperations(canvasEl: Ref<HTMLCanvasElement | null>) {
+export function useFileOperations(
+  canvasEl: Ref<HTMLCanvasElement | null>,
+  onSaveBeforeImport?: () => void
+) {
   const store = useDrawingStore()
   const fileInputEl = ref<HTMLInputElement | null>(null)
 
@@ -65,6 +68,14 @@ export function useFileOperations(canvasEl: Ref<HTMLCanvasElement | null>) {
     }
 
     if (hasCanvasContent()) {
+      const shouldSave = window.confirm(
+        'Your canvas has unsaved changes. Would you like to save before importing?'
+      )
+      if (shouldSave && onSaveBeforeImport) {
+        onSaveBeforeImport()
+        alert('Drawing saved to library!')
+      }
+
       if (!window.confirm('Importing will replace your current drawing. Continue?')) {
         target.value = ''
         return

@@ -22,7 +22,6 @@ function selectTool(tool: DrawingTool) {
     <label class="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">Shape</label>
     <div class="flex gap-1">
       <button
-        @click="selectTool('polygon')"
         :class="[
           'flex-1',
           'px-1',
@@ -37,6 +36,7 @@ function selectTool(tool: DrawingTool) {
             : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-600 hover:bg-gray-300 dark:hover:bg-gray-600'
         ]"
         title="Polygon"
+        @click="selectTool('polygon')"
       >
         <svg
           width="16"
@@ -55,7 +55,6 @@ function selectTool(tool: DrawingTool) {
         </svg>
       </button>
       <button
-        @click="selectTool('circle')"
         :class="[
           'flex-1',
           'px-1',
@@ -71,6 +70,7 @@ function selectTool(tool: DrawingTool) {
             : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-600 hover:bg-gray-300 dark:hover:bg-gray-600'
         ]"
         title="Circle"
+        @click="selectTool('circle')"
       >
         <svg
           width="16"
@@ -86,7 +86,6 @@ function selectTool(tool: DrawingTool) {
         </svg>
       </button>
       <button
-        @click="selectTool('square')"
         :class="[
           'flex-1',
           'px-1',
@@ -101,6 +100,7 @@ function selectTool(tool: DrawingTool) {
             : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-600 hover:bg-gray-300 dark:hover:bg-gray-600'
         ]"
         title="Rectangle"
+        @click="selectTool('square')"
       >
         <svg
           width="16"

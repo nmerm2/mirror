@@ -19,23 +19,23 @@ const emit = defineEmits<Emits>()
     <div class="text-center text-xs text-gray-600 dark:text-gray-400 mb-1">{{ zoom.toFixed(1) }}x</div>
     <div class="flex gap-0.5">
       <button
-        @click="emit('zoomOut')"
         class="flex-1 px-1 py-0.5 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600 text-sm font-bold hover:bg-gray-300 dark:hover:bg-gray-600"
         title="Zoom Out"
+        @click="emit('zoomOut')"
       >
         −
       </button>
       <button
-        @click="emit('resetZoom')"
         class="flex-1 px-1 py-0.5 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 border-t border-b border-gray-300 dark:border-gray-600 text-xs hover:bg-gray-300 dark:hover:bg-gray-600"
         title="Reset Zoom"
+        @click="emit('resetZoom')"
       >
         1x
       </button>
       <button
-        @click="emit('zoomIn')"
         class="flex-1 px-1 py-0.5 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600 text-sm font-bold hover:bg-gray-300 dark:hover:bg-gray-600"
         title="Zoom In"
+        @click="emit('zoomIn')"
       >
         +
       </button>

@@ -62,6 +62,6 @@ const gridLines = computed(() => {
       :key="line.key"
       :style="line.style"
       :class="line.isMajor ? 'bg-gray-400 dark:bg-gray-500 opacity-50' : 'bg-gray-300 dark:bg-gray-600 opacity-50'"
-    ></div>
+    />
   </template>
 </template>
