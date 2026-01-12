@@ -43,18 +43,18 @@ This app allows you to draw shapes that are automatically mirrored across vertic
 ### Prerequisites
 
 - Node.js (version 18.x or higher recommended)
-- npm
+- pnpm
 
 ### Installation
 
 ```bash
-npm install
+pnpm install
 ```
 
 ### Development
 
 ```bash
-npm run dev
+pnpm run dev
 ```
 
 The app will be available at http://localhost:3000
@@ -62,20 +62,20 @@ The app will be available at http://localhost:3000
 ### Production Build
 
 ```bash
-npm run build
-npm run preview
+pnpm run build
+pnpm run preview
 ```
 
 ### Static Site Generation
 
 ```bash
-npm run generate
+pnpm run generate
 ```
 
 ### Linting
 
 ```bash
-npx eslint .
+pnpm exec eslint .
 ```
 
 ## Technical Details
