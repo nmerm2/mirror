@@ -4,14 +4,16 @@ import { useColorMode } from '#imports'
 
 interface Props {
   canvasSize: CanvasSize
+  canUndo: boolean
+  canRedo: boolean
 }
 
 interface Emits {
-  (e: 'save' | 'library' | 'import' | 'export' | 'clear' | 'invert'): void
+  (e: 'save' | 'library' | 'import' | 'export' | 'clear' | 'invert' | 'undo' | 'redo'): void
   (e: 'canvas-size-change', size: CanvasSize): void
 }
 
-defineProps<Props>()
+const props = defineProps<Props>()
 const emit = defineEmits<Emits>()
 
 const colorMode = useColorMode()
@@ -67,6 +69,35 @@ function handleCanvasSizeChange(size: CanvasSize) {
         @click="emit('export')"
       >
         Export
+      </button>
+
+      <!-- Undo/Redo Buttons -->
+      <div class="h-6 w-px bg-gray-300 dark:bg-gray-600"></div>
+      <button
+        class="px-3 py-1 bg-gray-500 dark:bg-gray-600 text-white border border-gray-600 dark:border-gray-500 text-xs font-semibold transition-all flex items-center gap-1"
+        :class="props.canUndo ? 'hover:bg-gray-600 dark:hover:bg-gray-700' : 'opacity-40 cursor-not-allowed'"
+        :disabled="!props.canUndo"
+        title="Undo (Cmd+Z)"
+        @click="emit('undo')"
+      >
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M3 7v6h6" />
+          <path d="M21 17a9 9 0 00-9-9 9 9 0 00-6 2.3L3 13" />
+        </svg>
+        Undo
+      </button>
+      <button
+        class="px-3 py-1 bg-gray-500 dark:bg-gray-600 text-white border border-gray-600 dark:border-gray-500 text-xs font-semibold transition-all flex items-center gap-1"
+        :class="props.canRedo ? 'hover:bg-gray-600 dark:hover:bg-gray-700' : 'opacity-40 cursor-not-allowed'"
+        :disabled="!props.canRedo"
+        title="Redo (Cmd+Shift+Z)"
+        @click="emit('redo')"
+      >
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 7v6h-6" />
+          <path d="M3 17a9 9 0 019-9 9 9 0 016 2.3l3 2.7" />
+        </svg>
+        Redo
       </button>
     </div>
 

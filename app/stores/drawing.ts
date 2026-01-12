@@ -52,8 +52,15 @@ export const useDrawingStore = defineStore('drawing', () => {
   const snapToGrid = ref(false)
   const showMirrorLines = ref(true)
 
+  // History state (undo/redo)
+  const historyStack = ref<ImageData[]>([])
+  const historyIndex = ref(-1)
+  const maxHistorySize = 5
+
   // Computed
   const currentDimensions = computed(() => CANVAS_DIMENSIONS[canvasSize.value])
+  const canUndo = computed(() => historyIndex.value > 0)
+  const canRedo = computed(() => historyIndex.value < historyStack.value.length - 1)
 
   // Actions
   function setDrawingTool(tool: DrawingTool) {
@@ -137,6 +144,44 @@ export const useDrawingStore = defineStore('drawing', () => {
     panStart.value = null
   }
 
+  function pushHistory(imageData: ImageData) {
+    // Remove redo states when new action is performed
+    if (historyIndex.value < historyStack.value.length - 1) {
+      historyStack.value = historyStack.value.slice(0, historyIndex.value + 1)
+    }
+
+    // Add new state
+    historyStack.value.push(imageData)
+
+    // Limit to maxHistorySize (5)
+    if (historyStack.value.length > maxHistorySize) {
+      historyStack.value.shift() // Remove oldest
+    } else {
+      historyIndex.value++
+    }
+  }
+
+  function undo(): ImageData | null {
+    if (historyIndex.value > 0) {
+      historyIndex.value--
+      return historyStack.value[historyIndex.value]
+    }
+    return null
+  }
+
+  function redo(): ImageData | null {
+    if (historyIndex.value < historyStack.value.length - 1) {
+      historyIndex.value++
+      return historyStack.value[historyIndex.value]
+    }
+    return null
+  }
+
+  function clearHistory() {
+    historyStack.value = []
+    historyIndex.value = -1
+  }
+
   return {
     // State
     isDrawing,
@@ -157,9 +202,13 @@ export const useDrawingStore = defineStore('drawing', () => {
     gridSize,
     snapToGrid,
     showMirrorLines,
+    historyStack,
+    historyIndex,
 
     // Computed
     currentDimensions,
+    canUndo,
+    canRedo,
 
     // Actions
     setDrawingTool,
@@ -177,6 +226,10 @@ export const useDrawingStore = defineStore('drawing', () => {
     finishShape,
     startPan,
     updatePan,
-    endPan
+    endPan,
+    pushHistory,
+    undo,
+    redo,
+    clearHistory
   }
 })

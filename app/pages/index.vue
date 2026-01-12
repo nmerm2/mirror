@@ -55,6 +55,11 @@ function initializeCanvas() {
 
   ctx.fillStyle = 'white'
   ctx.fillRect(0, 0, canvas.width, canvas.height)
+
+  // Capture initial blank canvas
+  const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height)
+  store.clearHistory()
+  store.pushHistory(imageData)
 }
 
 // Drawing functions
@@ -205,6 +210,11 @@ function handlePolygonClick(e: MouseEvent) {
           ctx.putImageData(store.savedImageData, 0, 0)
         }
         drawMirroredPolygon(ctx, store.polygonPoints, true)
+
+        // Capture history after completing polygon
+        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height)
+        store.pushHistory(imageData)
+
         store.finishPolygon()
         return
       }
@@ -243,6 +253,11 @@ function handleDoubleClick(_e: MouseEvent) {
       ctx.putImageData(store.savedImageData, 0, 0)
     }
     drawMirroredPolygon(ctx, store.polygonPoints, true)
+
+    // Capture history after completing polygon
+    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height)
+    store.pushHistory(imageData)
+
     store.finishPolygon()
   }
 }
@@ -382,6 +397,10 @@ function stopDrawing(e: MouseEvent) {
   }
   if (store.startPos && (store.drawingTool === 'circle' || store.drawingTool === 'square')) {
     drawMirroredShape(ctx, store.startPos.x, store.startPos.y, pos.x, pos.y, store.drawingTool)
+
+    // Capture history after completing shape
+    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height)
+    store.pushHistory(imageData)
   }
 
   store.finishShape()
@@ -435,6 +454,10 @@ function clearCanvas() {
   ctx.fillStyle = 'white'
   ctx.fillRect(0, 0, canvas.width, canvas.height)
 
+  // Capture history after clearing
+  const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height)
+  store.pushHistory(imageData)
+
   store.cancelPolygon()
 }
 
@@ -458,6 +481,47 @@ function invertColors() {
   }
 
   ctx.putImageData(imageData, 0, 0)
+
+  // Capture history after inverting
+  const newImageData = ctx.getImageData(0, 0, canvas.width, canvas.height)
+  store.pushHistory(newImageData)
+}
+
+// Undo/Redo operations
+function performUndo() {
+  const canvas = canvasEl.value
+  if (!canvas) return
+
+  const ctx = canvas.getContext('2d')
+  if (!ctx) return
+
+  const imageData = store.undo()
+  if (imageData) {
+    ctx.putImageData(imageData, 0, 0)
+
+    // Cancel any active polygon drawing
+    if (store.isDrawingPolygon) {
+      store.cancelPolygon()
+    }
+  }
+}
+
+function performRedo() {
+  const canvas = canvasEl.value
+  if (!canvas) return
+
+  const ctx = canvas.getContext('2d')
+  if (!ctx) return
+
+  const imageData = store.redo()
+  if (imageData) {
+    ctx.putImageData(imageData, 0, 0)
+
+    // Cancel any active polygon drawing
+    if (store.isDrawingPolygon) {
+      store.cancelPolygon()
+    }
+  }
 }
 
 // Cancel polygon
@@ -548,6 +612,20 @@ function handleDownloadDrawing(drawing: SavedDrawing) {
 
 // Keyboard handlers
 function handleKeyDown(e: KeyboardEvent) {
+  // Undo: Cmd+Z (Mac) or Ctrl+Z (Windows/Linux)
+  if ((e.metaKey || e.ctrlKey) && e.key === 'z' && !e.shiftKey) {
+    e.preventDefault()
+    performUndo()
+    return
+  }
+
+  // Redo: Cmd+Shift+Z (Mac) or Ctrl+Shift+Z (Windows/Linux)
+  if ((e.metaKey || e.ctrlKey) && e.key === 'z' && e.shiftKey) {
+    e.preventDefault()
+    performRedo()
+    return
+  }
+
   if (e.key === 'Escape') {
     if (showLibrary.value) {
       closeLibrary()
@@ -607,7 +685,7 @@ onBeforeUnmount(() => {
 <template>
   <div class="h-screen flex flex-col overflow-hidden bg-white dark:bg-gray-900 transition-colors">
     <!-- Header Bar -->
-    <HeaderBar :canvas-size="store.canvasSize" @save="handleSaveDrawing" @library="openLibrary" @import="importPNG" @export="exportAsPNG" @clear="clearCanvas" @invert="invertColors" @canvas-size-change="handleCanvasSizeChange" />
+    <HeaderBar :canvas-size="store.canvasSize" :can-undo="store.canUndo" :can-redo="store.canRedo" @save="handleSaveDrawing" @library="openLibrary" @import="importPNG" @export="exportAsPNG" @clear="clearCanvas" @invert="invertColors" @undo="performUndo" @redo="performRedo" @canvas-size-change="handleCanvasSizeChange" />
 
     <!-- Main Content Area -->
     <div class="flex-1 flex overflow-hidden p-4 gap-4">

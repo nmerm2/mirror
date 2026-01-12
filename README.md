@@ -114,7 +114,3 @@ app/
 │   └── drawing.ts            # Pinia store for drawing state
 └── app.vue                   # Root component
 ```
-
-## Migration
-
-This Nuxt application was migrated from a React implementation via Vue 3. For details about the migration process and architecture, see [MIGRATION.md](MIGRATION.md).

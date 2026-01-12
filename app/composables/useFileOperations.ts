@@ -115,6 +115,10 @@ export function useFileOperations(
           drawY = 0
         }
         ctx.drawImage(img, drawX, drawY, drawWidth, drawHeight)
+
+        // Capture history after importing image
+        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height)
+        store.pushHistory(imageData)
       }
       img.onerror = () => alert('Failed to load image. Please try another file.')
       img.src = event.target?.result as string

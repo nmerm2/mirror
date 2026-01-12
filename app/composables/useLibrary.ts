@@ -147,6 +147,11 @@ export function useLibrary() {
         ctx.fillRect(0, 0, canvas.width, canvas.height)
         ctx.drawImage(img, 0, 0, canvas.width, canvas.height)
 
+        // Capture history after loading from library
+        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height)
+        store.clearHistory()
+        store.pushHistory(imageData)
+
         resolve()
       }
       img.onerror = () => {
