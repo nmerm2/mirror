@@ -4,6 +4,7 @@ import { useDrawingStore, SNAP_DISTANCE, type Point } from '~/stores/drawing'
 import { useFileOperations } from '~/composables/useFileOperations'
 import { useCoordinateTransform } from '~/composables/useCoordinateTransform'
 import { useZoomPan } from '~/composables/useZoomPan'
+import { useMosaicTransform } from '~/composables/useMosaicTransform'
 import { useLibrary, type SavedDrawing } from '~/composables/useLibrary'
 import HeaderBar from '~/components/HeaderBar.vue'
 import ControlPanel from '~/components/ControlPanel.vue'
@@ -31,6 +32,8 @@ const { getCanvasCoordinates } = useCoordinateTransform(canvasEl, containerEl)
 
 const { handlePanStart, handlePanMove, handlePanEnd, handleGlobalMouseUp, handleWheel, zoomOnCenter, resetZoom } =
   useZoomPan(containerEl)
+
+const { getAllTilePoints, getAllTilePointSets } = useMosaicTransform(canvasEl)
 
 const { saveDrawing, listDrawings, loadDrawing, deleteDrawing, renameDrawing, downloadDrawing } = useLibrary()
 
@@ -180,6 +183,90 @@ function drawMirroredPolygon(
   })
 }
 
+function drawMosaicShape(
+  ctx: CanvasRenderingContext2D,
+  x1: number,
+  y1: number,
+  x2: number,
+  y2: number,
+  shape: 'circle' | 'square'
+) {
+  const canvas = canvasEl.value
+  if (!canvas) return
+
+  // Get all transformed points for start position
+  const startPoints = getAllTilePoints(x1, y1)
+
+  ctx.fillStyle = store.color
+
+  startPoints.forEach((startPoint) => {
+    // Calculate the offset from original to transformed start point
+    const dx = startPoint.x - x1
+    const dy = startPoint.y - y1
+
+    // Apply same offset to end point
+    const endX = x2 + dx
+    const endY = y2 + dy
+
+    ctx.beginPath()
+    if (shape === 'circle') {
+      const radius = Math.sqrt(
+        Math.pow(endX - startPoint.x, 2) + Math.pow(endY - startPoint.y, 2)
+      )
+      ctx.arc(startPoint.x, startPoint.y, radius, 0, Math.PI * 2)
+      ctx.fill()
+    } else if (shape === 'square') {
+      const width = endX - startPoint.x
+      const height = endY - startPoint.y
+      ctx.fillRect(startPoint.x, startPoint.y, width, height)
+    }
+  })
+}
+
+function drawMosaicPolygon(
+  ctx: CanvasRenderingContext2D,
+  points: Point[],
+  closeShape: boolean = false
+) {
+  if (points.length === 0) return
+
+  const allPointSets = getAllTilePointSets(points)
+
+  allPointSets.forEach((pointSet) => {
+    ctx.beginPath()
+    const firstPoint = pointSet[0]
+    if (!firstPoint) return
+    ctx.moveTo(firstPoint.x, firstPoint.y)
+
+    for (let i = 1; i < pointSet.length; i++) {
+      const point = pointSet[i]
+      if (!point) continue
+      ctx.lineTo(point.x, point.y)
+    }
+
+    if (closeShape) {
+      ctx.closePath()
+      ctx.fillStyle = store.color
+      ctx.fill()
+    } else {
+      ctx.strokeStyle = store.color
+      ctx.lineWidth = 4 / store.zoom
+      ctx.stroke()
+
+      // Draw corner markers
+      pointSet.forEach((point, index) => {
+        ctx.beginPath()
+        ctx.arc(point.x, point.y, 10 / store.zoom, 0, Math.PI * 2)
+        ctx.fillStyle = index === 0 ? '#ef4444' : '#3b82f6'
+        ctx.fill()
+        ctx.strokeStyle = 'white'
+        ctx.lineWidth = 3 / store.zoom
+        ctx.stroke()
+      })
+    }
+  })
+}
+
 // Event handlers
 function handleClick(e: MouseEvent) {
   if (store.drawingTool === 'polygon' && !e.shiftKey && e.button !== 1) {
@@ -209,7 +296,11 @@ function handlePolygonClick(e: MouseEvent) {
         if (store.savedImageData) {
           ctx.putImageData(store.savedImageData, 0, 0)
         }
-        drawMirroredPolygon(ctx, store.polygonPoints, true)
+        if (store.mirrorMode === 'mosaic') {
+          drawMosaicPolygon(ctx, store.polygonPoints, true)
+        } else {
+          drawMirroredPolygon(ctx, store.polygonPoints, true)
+        }
 
         // Capture history after completing polygon
         const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height)
@@ -234,7 +325,11 @@ function handlePolygonClick(e: MouseEvent) {
   if (store.savedImageData) {
     ctx.putImageData(store.savedImageData, 0, 0)
   }
-  drawMirroredPolygon(ctx, store.polygonPoints, false)
+  if (store.mirrorMode === 'mosaic') {
+    drawMosaicPolygon(ctx, store.polygonPoints, false)
+  } else {
+    drawMirroredPolygon(ctx, store.polygonPoints, false)
+  }
 }
 
 function handleDoubleClick(_e: MouseEvent) {
@@ -252,7 +347,11 @@ function handleDoubleClick(_e: MouseEvent) {
     if (store.savedImageData) {
       ctx.putImageData(store.savedImageData, 0, 0)
     }
-    drawMirroredPolygon(ctx, store.polygonPoints, true)
+    if (store.mirrorMode === 'mosaic') {
+      drawMosaicPolygon(ctx, store.polygonPoints, true)
+    } else {
+      drawMirroredPolygon(ctx, store.polygonPoints, true)
+    }
 
     // Capture history after completing polygon
     const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height)
@@ -310,49 +409,79 @@ function draw(e: MouseEvent) {
     if (store.savedImageData) {
       ctx.putImageData(store.savedImageData, 0, 0)
     }
-    drawMirroredPolygon(ctx, store.polygonPoints, false)
+    if (store.mirrorMode === 'mosaic') {
+      drawMosaicPolygon(ctx, store.polygonPoints, false)
+    } else {
+      drawMirroredPolygon(ctx, store.polygonPoints, false)
+    }
 
     // Draw preview line
     if (store.polygonPoints.length > 0) {
       const lastPoint = store.polygonPoints[store.polygonPoints.length - 1]
       if (!lastPoint) return
-      const previewSets: Array<{ from: Point; to: Point }> = []
 
-      previewSets.push({ from: lastPoint, to: pos })
+      if (store.mirrorMode === 'mosaic') {
+        // For mosaic mode, get all transformed points
+        const lastPoints = getAllTilePoints(lastPoint.x, lastPoint.y)
+        const currentPoints = getAllTilePoints(pos.x, pos.y)
 
-      if (store.mirrorMode === 'horizontal' || store.mirrorMode === 'both') {
-        previewSets.push({
-          from: { x: canvas.width - lastPoint.x, y: lastPoint.y },
-          to: { x: canvas.width - pos.x, y: pos.y }
+        ctx.strokeStyle = store.color
+        ctx.globalAlpha = 0.5
+        ctx.lineWidth = 4 / store.zoom
+        ctx.setLineDash([8 / store.zoom, 8 / store.zoom])
+
+        // Draw preview lines from each transformed last point to corresponding current point
+        lastPoints.forEach((lp, index) => {
+          const cp = currentPoints[index]
+          if (!cp) return
+          ctx.beginPath()
+          ctx.moveTo(lp.x, lp.y)
+          ctx.lineTo(cp.x, cp.y)
+          ctx.stroke()
         })
-      }
-      if (store.mirrorMode === 'vertical' || store.mirrorMode === 'both') {
-        previewSets.push({
-          from: { x: lastPoint.x, y: canvas.height - lastPoint.y },
-          to: { x: pos.x, y: canvas.height - pos.y }
+
+        ctx.setLineDash([])
+        ctx.globalAlpha = 1.0
+      } else {
+        // Mirror mode preview
+        const previewSets: Array<{ from: Point; to: Point }> = []
+
+        previewSets.push({ from: lastPoint, to: pos })
+
+        if (store.mirrorMode === 'horizontal' || store.mirrorMode === 'both') {
+          previewSets.push({
+            from: { x: canvas.width - lastPoint.x, y: lastPoint.y },
+            to: { x: canvas.width - pos.x, y: pos.y }
+          })
+        }
+        if (store.mirrorMode === 'vertical' || store.mirrorMode === 'both') {
+          previewSets.push({
+            from: { x: lastPoint.x, y: canvas.height - lastPoint.y },
+            to: { x: pos.x, y: canvas.height - pos.y }
+          })
+        }
+        if (store.mirrorMode === 'both') {
+          previewSets.push({
+            from: { x: canvas.width - lastPoint.x, y: canvas.height - lastPoint.y },
+            to: { x: canvas.width - pos.x, y: canvas.height - pos.y }
+          })
+        }
+
+        ctx.strokeStyle = store.color
+        ctx.globalAlpha = 0.5
+        ctx.lineWidth = 4 / store.zoom
+        ctx.setLineDash([8 / store.zoom, 8 / store.zoom])
+
+        previewSets.forEach((set) => {
+          ctx.beginPath()
+          ctx.moveTo(set.from.x, set.from.y)
+          ctx.lineTo(set.to.x, set.to.y)
+          ctx.stroke()
         })
+
+        ctx.setLineDash([])
+        ctx.globalAlpha = 1.0
       }
-      if (store.mirrorMode === 'both') {
-        previewSets.push({
-          from: { x: canvas.width - lastPoint.x, y: canvas.height - lastPoint.y },
-          to: { x: canvas.width - pos.x, y: canvas.height - pos.y }
-        })
-      }
-
-      ctx.strokeStyle = store.color
-      ctx.globalAlpha = 0.5
-      ctx.lineWidth = 4 / store.zoom
-      ctx.setLineDash([8 / store.zoom, 8 / store.zoom])
-
-      previewSets.forEach((set) => {
-        ctx.beginPath()
-        ctx.moveTo(set.from.x, set.from.y)
-        ctx.lineTo(set.to.x, set.to.y)
-        ctx.stroke()
-      })
-
-      ctx.setLineDash([])
-      ctx.globalAlpha = 1.0
     }
     return
   }
@@ -363,7 +492,11 @@ function draw(e: MouseEvent) {
   ctx.putImageData(store.savedImageData, 0, 0)
   ctx.globalAlpha = 0.5
   if (store.drawingTool === 'circle' || store.drawingTool === 'square') {
-    drawMirroredShape(ctx, store.startPos.x, store.startPos.y, pos.x, pos.y, store.drawingTool)
+    if (store.mirrorMode === 'mosaic') {
+      drawMosaicShape(ctx, store.startPos.x, store.startPos.y, pos.x, pos.y, store.drawingTool)
+    } else {
+      drawMirroredShape(ctx, store.startPos.x, store.startPos.y, pos.x, pos.y, store.drawingTool)
+    }
   }
   ctx.globalAlpha = 1.0
 }
@@ -396,7 +529,11 @@ function stopDrawing(e: MouseEvent) {
     ctx.putImageData(store.savedImageData, 0, 0)
   }
   if (store.startPos && (store.drawingTool === 'circle' || store.drawingTool === 'square')) {
-    drawMirroredShape(ctx, store.startPos.x, store.startPos.y, pos.x, pos.y, store.drawingTool)
+    if (store.mirrorMode === 'mosaic') {
+      drawMosaicShape(ctx, store.startPos.x, store.startPos.y, pos.x, pos.y, store.drawingTool)
+    } else {
+      drawMirroredShape(ctx, store.startPos.x, store.startPos.y, pos.x, pos.y, store.drawingTool)
+    }
 
     // Capture history after completing shape
     const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height)
@@ -696,7 +833,7 @@ onBeforeUnmount(() => {
       <input ref="fileInputEl" type="file" accept="image/*" style="display: none" @change="handleFileImport" >
 
       <!-- Canvas Container -->
-      <CanvasContainer ref="canvasContainerRef" :aspect-ratio="containerAspectRatio" :zoom="store.zoom" :pan-offset="store.panOffset" :is-panning="store.isPanning" :show-grid="store.showGrid" :grid-size="store.gridSize" :canvas-width="store.currentDimensions.width" :canvas-height="store.currentDimensions.height" :show-mirror-lines="store.showMirrorLines" :mirror-mode="store.mirrorMode">
+      <CanvasContainer ref="canvasContainerRef" :aspect-ratio="containerAspectRatio" :zoom="store.zoom" :pan-offset="store.panOffset" :is-panning="store.isPanning" :show-grid="store.showGrid" :grid-size="store.gridSize" :canvas-width="store.currentDimensions.width" :canvas-height="store.currentDimensions.height" :show-mirror-lines="store.showMirrorLines" :mirror-mode="store.mirrorMode" :mosaic-rotation="store.mosaicRotation" :mosaic-tile-count-x="store.mosaicTileCountX" :mosaic-tile-count-y="store.mosaicTileCountY" :show-mosaic-lines="store.showMosaicLines" :tile-grid-divisions="store.tileGridDivisions">
         <!-- Drawing Canvas -->
         <canvas
   ref="canvasEl" class="w-full h-full pointer-events-none" :style="{

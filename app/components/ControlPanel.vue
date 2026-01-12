@@ -38,16 +38,27 @@ const emit = defineEmits<Emits>()
       <MirrorControls
         :mirror-mode="store.mirrorMode"
         :show-mirror-lines="store.showMirrorLines"
+        :mosaic-rotation="store.mosaicRotation"
+        :mosaic-tile-count-x="store.mosaicTileCountX"
+        :mosaic-tile-count-y="store.mosaicTileCountY"
+        :show-mosaic-lines="store.showMosaicLines"
         @update:mirror-mode="store.mirrorMode = $event"
         @update:show-mirror-lines="store.showMirrorLines = $event"
+        @update:mosaic-rotation="store.setMosaicRotation($event)"
+        @update:mosaic-tile-count-x="store.setMosaicTileCountX($event)"
+        @update:mosaic-tile-count-y="store.setMosaicTileCountY($event)"
+        @update:show-mosaic-lines="store.setShowMosaicLines($event)"
       />
       <GridControls
         :grid-size="store.gridSize"
         :show-grid="store.showGrid"
         :snap-to-grid="store.snapToGrid"
+        :mirror-mode="store.mirrorMode"
+        :tile-grid-divisions="store.tileGridDivisions"
         @update:grid-size="store.gridSize = $event"
         @update:show-grid="store.showGrid = $event"
         @update:snap-to-grid="store.snapToGrid = $event"
+        @update:tile-grid-divisions="store.setTileGridDivisions($event)"
       />
     </div>
 

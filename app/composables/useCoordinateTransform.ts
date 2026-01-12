@@ -42,8 +42,19 @@ export function useCoordinateTransform(
 
     // Snap to grid
     if (store.snapToGrid) {
-      x = Math.round(x / store.gridSize) * store.gridSize
-      y = Math.round(y / store.gridSize) * store.gridSize
+      if (store.mirrorMode === 'mosaic') {
+        // Tile Grid: Calculate cell size based on tile dimensions
+        const tileWidth = canvas.width / store.mosaicTileCountX
+        const tileHeight = canvas.height / store.mosaicTileCountY
+        const cellSize = Math.min(tileWidth, tileHeight) / store.tileGridDivisions
+
+        x = Math.round(x / cellSize) * cellSize
+        y = Math.round(y / cellSize) * cellSize
+      } else {
+        // Canvas Grid: Use absolute pixel grid size
+        x = Math.round(x / store.gridSize) * store.gridSize
+        y = Math.round(y / store.gridSize) * store.gridSize
+      }
     }
 
     return { x, y }

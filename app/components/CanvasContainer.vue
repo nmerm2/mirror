@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import type { Point } from '~/stores/drawing'
+import type { Point, MirrorMode, MosaicRotation, MosaicTileCount, TileGridDivisions } from '~/stores/drawing'
 import GridOverlay from './overlays/GridOverlay.vue'
 import MirrorLinesOverlay from './overlays/MirrorLinesOverlay.vue'
+import MosaicLinesOverlay from './overlays/MosaicLinesOverlay.vue'
 
 interface Props {
   aspectRatio: string
@@ -14,7 +15,12 @@ interface Props {
   canvasWidth: number
   canvasHeight: number
   showMirrorLines: boolean
-  mirrorMode: 'none' | 'horizontal' | 'vertical' | 'both'
+  mirrorMode: MirrorMode
+  mosaicRotation: MosaicRotation
+  mosaicTileCountX: MosaicTileCount
+  mosaicTileCountY: MosaicTileCount
+  showMosaicLines: boolean
+  tileGridDivisions: TileGridDivisions
 }
 
 const props = defineProps<Props>()
@@ -54,12 +60,24 @@ defineExpose({
           overflow: 'visible'
         }"
       >
-        <MirrorLinesOverlay :show="showMirrorLines" :mode="mirrorMode" />
+        <MirrorLinesOverlay :show="showMirrorLines && mirrorMode !== 'mosaic'" :mode="mirrorMode" />
+        <MosaicLinesOverlay
+          :show="showMosaicLines && mirrorMode === 'mosaic'"
+          :rotation="mosaicRotation"
+          :tile-count-x="mosaicTileCountX"
+          :tile-count-y="mosaicTileCountY"
+          :canvas-width="canvasWidth"
+          :canvas-height="canvasHeight"
+        />
         <GridOverlay
           :show="showGrid"
           :grid-size="gridSize"
           :canvas-width="canvasWidth"
           :canvas-height="canvasHeight"
+          :mirror-mode="mirrorMode"
+          :mosaic-tile-count-x="mosaicTileCountX"
+          :mosaic-tile-count-y="mosaicTileCountY"
+          :tile-grid-divisions="tileGridDivisions"
         />
       </div>
 

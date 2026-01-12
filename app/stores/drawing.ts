@@ -2,7 +2,10 @@ import { ref, computed } from 'vue'
 import { defineStore } from 'pinia'
 
 export type DrawingTool = 'polygon' | 'circle' | 'square'
-export type MirrorMode = 'none' | 'horizontal' | 'vertical' | 'both'
+export type MirrorMode = 'none' | 'horizontal' | 'vertical' | 'both' | 'mosaic'
+export type MosaicRotation = 'none' | 2 | 3 | 4 | 6 | 8
+export type MosaicTileCount = 1 | 2 | 3 | 4 | 5 | 6
+export type TileGridDivisions = 2 | 4 | 8 | 16 | 32
 export type CanvasSize = 'landscape' | 'portrait' | 'square'
 export type Color = 'black' | 'white'
 
@@ -51,6 +54,13 @@ export const useDrawingStore = defineStore('drawing', () => {
   const gridSize = ref(50)
   const snapToGrid = ref(false)
   const showMirrorLines = ref(true)
+
+  // Mosaic state (only used when mirrorMode === 'mosaic')
+  const mosaicRotation = ref<MosaicRotation>(4)
+  const mosaicTileCountX = ref<MosaicTileCount>(2)
+  const mosaicTileCountY = ref<MosaicTileCount>(2)
+  const showMosaicLines = ref(true)
+  const tileGridDivisions = ref<TileGridDivisions>(4) // Grid divisions per tile in mosaic mode
 
   // History state (undo/redo)
   const historyStack = ref<ImageData[]>([])
@@ -182,6 +192,26 @@ export const useDrawingStore = defineStore('drawing', () => {
     historyIndex.value = -1
   }
 
+  function setMosaicRotation(rotation: MosaicRotation) {
+    mosaicRotation.value = rotation
+  }
+
+  function setMosaicTileCountX(count: MosaicTileCount) {
+    mosaicTileCountX.value = count
+  }
+
+  function setMosaicTileCountY(count: MosaicTileCount) {
+    mosaicTileCountY.value = count
+  }
+
+  function setShowMosaicLines(show: boolean) {
+    showMosaicLines.value = show
+  }
+
+  function setTileGridDivisions(divisions: TileGridDivisions) {
+    tileGridDivisions.value = divisions
+  }
+
   return {
     // State
     isDrawing,
@@ -202,6 +232,11 @@ export const useDrawingStore = defineStore('drawing', () => {
     gridSize,
     snapToGrid,
     showMirrorLines,
+    mosaicRotation,
+    mosaicTileCountX,
+    mosaicTileCountY,
+    showMosaicLines,
+    tileGridDivisions,
     historyStack,
     historyIndex,
 
@@ -230,6 +265,11 @@ export const useDrawingStore = defineStore('drawing', () => {
     pushHistory,
     undo,
     redo,
-    clearHistory
+    clearHistory,
+    setMosaicRotation,
+    setMosaicTileCountX,
+    setMosaicTileCountY,
+    setShowMosaicLines,
+    setTileGridDivisions
   }
 })
