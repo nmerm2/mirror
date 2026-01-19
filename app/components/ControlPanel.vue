@@ -2,6 +2,7 @@
 import { useDrawingStore } from '~/stores/drawing'
 import ToolSelector from './controls/ToolSelector.vue'
 import ColorPicker from './controls/ColorPicker.vue'
+import LayerPanel from './controls/LayerPanel.vue'
 import MirrorControls from './controls/MirrorControls.vue'
 import GridControls from './controls/GridControls.vue'
 import SectionLabel from './controls/SectionLabel.vue'
@@ -28,8 +29,14 @@ const emit = defineEmits<Emits>()
       />
       <ColorPicker
         :selected-color="store.color"
-        @update:selected-color="store.setColor($event as typeof store.color)"
+        @update:selected-color="store.setColor($event)"
       />
+    </div>
+
+    <!-- Layers Section -->
+    <SectionLabel label="Layers" :first="false" />
+    <div class="space-y-1.5">
+      <LayerPanel />
     </div>
 
     <!-- Settings Section -->

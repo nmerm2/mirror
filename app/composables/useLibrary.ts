@@ -1,16 +1,26 @@
 import { useDrawingStore } from '~/stores/drawing'
 
+export interface SavedLayer {
+  id: string
+  name: string
+  color: string
+  visible: boolean
+  order: number
+  canvasData: string // base64 encoded PNG
+}
+
 export interface SavedDrawing {
   id: string
   version: string
   name: string
   timestamp: number
-  canvasData: string // base64 encoded PNG
+  canvasData: string // base64 encoded PNG (composited, for backward compatibility)
   thumbnail: string // small base64 preview
+  layers?: SavedLayer[] // Layer data (v2.0.0+)
   settings: {
     canvasSize: 'landscape' | 'portrait' | 'square'
-    mirrorMode: 'none' | 'horizontal' | 'vertical' | 'both'
-    color: 'black' | 'white'
+    mirrorMode: 'none' | 'horizontal' | 'vertical' | 'both' | 'mosaic'
+    color: string // Hex color
     drawingTool: 'polygon' | 'circle' | 'square'
     showGrid: boolean
     gridSize: number
@@ -20,7 +30,7 @@ export interface SavedDrawing {
 }
 
 const STORAGE_KEY = 'mirror-drawing-library'
-const CURRENT_VERSION = '1.0.0'
+const CURRENT_VERSION = '2.0.0' // Updated to support layers
 const THUMBNAIL_WIDTH = 300
 
 export function useLibrary() {
@@ -63,8 +73,19 @@ export function useLibrary() {
    * Save current canvas and settings to library
    */
   function saveDrawing(canvas: HTMLCanvasElement, customName?: string): SavedDrawing {
+    // Save composited canvas data (for backward compatibility and thumbnail)
     const canvasData = canvas.toDataURL('image/png')
     const thumbnail = generateThumbnail(canvas)
+
+    // Save all layers
+    const savedLayers: SavedLayer[] = store.layers.map(layer => ({
+      id: layer.id,
+      name: layer.name,
+      color: layer.color,
+      visible: layer.visible,
+      order: layer.order,
+      canvasData: layer.canvas ? layer.canvas.toDataURL('image/png') : ''
+    }))
 
     const drawing: SavedDrawing = {
       id: `drawing-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
@@ -73,6 +94,7 @@ export function useLibrary() {
       timestamp: Date.now(),
       canvasData,
       thumbnail,
+      layers: savedLayers,
       settings: {
         canvasSize: store.canvasSize,
         mirrorMode: store.mirrorMode,
@@ -130,35 +152,165 @@ export function useLibrary() {
       store.snapToGrid = drawing.settings.snapToGrid
       store.showMirrorLines = drawing.settings.showMirrorLines
 
-      // Initialize canvas with new dimensions
+      // Clear existing layers and initialize
+      store.clearLayers()
       initializeCanvas()
 
-      // Load image
-      const img = new Image()
-      img.onload = () => {
-        const ctx = canvas.getContext('2d')
-        if (!ctx) {
-          reject(new Error('Could not get canvas context'))
+      // Check if drawing has layers (v2.0.0+)
+      if (drawing.layers && drawing.layers.length > 0) {
+        // Load layered drawing
+        loadLayeredDrawing(drawing, canvas, resolve, reject)
+      } else {
+        // Load legacy drawing (v1.0.0) - convert to single layer
+        loadLegacyDrawing(drawing, canvas, resolve, reject)
+      }
+    })
+  }
+
+  /**
+   * Load a drawing with layers (v2.0.0+)
+   */
+  function loadLayeredDrawing(
+    drawing: SavedDrawing,
+    canvas: HTMLCanvasElement,
+    resolve: () => void,
+    reject: (error: Error) => void
+  ): void {
+    if (!drawing.layers) {
+      reject(new Error('No layers found in drawing'))
+      return
+    }
+
+    // Clear existing layers
+    store.clearLayers()
+
+    // Load each layer
+    const layerPromises = drawing.layers.map(savedLayer => {
+      return new Promise<void>((resolveLayer, rejectLayer) => {
+        // Create layer in store
+        const newLayer = store.addLayer(savedLayer.color)
+        if (!newLayer) {
+          rejectLayer(new Error('Failed to create layer'))
           return
         }
 
-        ctx.clearRect(0, 0, canvas.width, canvas.height)
-        ctx.fillStyle = 'white'
-        ctx.fillRect(0, 0, canvas.width, canvas.height)
-        ctx.drawImage(img, 0, 0, canvas.width, canvas.height)
+        // Update layer properties
+        newLayer.name = savedLayer.name
+        newLayer.visible = savedLayer.visible
+        newLayer.order = savedLayer.order
 
-        // Capture history after loading from library
-        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height)
-        store.clearHistory()
-        store.pushHistory(imageData)
+        // Create canvas for layer
+        const layerCanvas = document.createElement('canvas')
+        const dimensions = store.currentDimensions
+        layerCanvas.width = dimensions.width
+        layerCanvas.height = dimensions.height
+
+        // Load layer image
+        const img = new Image()
+        img.onload = () => {
+          const ctx = layerCanvas.getContext('2d')
+          if (!ctx) {
+            rejectLayer(new Error('Could not get layer canvas context'))
+            return
+          }
+
+          ctx.clearRect(0, 0, layerCanvas.width, layerCanvas.height)
+          ctx.drawImage(img, 0, 0, layerCanvas.width, layerCanvas.height)
+
+          // Store the canvas
+          store.setLayerCanvas(newLayer.id, layerCanvas)
+
+          resolveLayer()
+        }
+        img.onerror = () => {
+          rejectLayer(new Error(`Failed to load layer ${savedLayer.name}`))
+        }
+        img.src = savedLayer.canvasData
+      })
+    })
+
+    // Wait for all layers to load
+    Promise.all(layerPromises)
+      .then(() => {
+        // Set active layer to the first one
+        if (store.layers.length > 0) {
+          store.setActiveLayer(store.layers[0].id)
+        }
+
+        // Composite layers to main canvas and capture history
+        const ctx = canvas.getContext('2d')
+        if (ctx) {
+          // Clear main canvas
+          ctx.clearRect(0, 0, canvas.width, canvas.height)
+
+          // Composite all layers
+          store.sortedLayers.forEach(layer => {
+            if (layer.visible && layer.canvas) {
+              ctx.drawImage(layer.canvas, 0, 0)
+            }
+          })
+
+          const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height)
+          store.clearHistory()
+          store.pushHistory(imageData)
+        }
 
         resolve()
+      })
+      .catch(reject)
+  }
+
+  /**
+   * Load a legacy drawing (v1.0.0) - convert to single layer
+   */
+  function loadLegacyDrawing(
+    drawing: SavedDrawing,
+    canvas: HTMLCanvasElement,
+    resolve: () => void,
+    reject: (error: Error) => void
+  ): void {
+    const img = new Image()
+    img.onload = () => {
+      // Clear existing layers and create a single layer
+      store.clearLayers()
+      const layer = store.addLayer('#000000')
+
+      if (!layer || !layer.canvas) {
+        reject(new Error('Failed to create layer for legacy drawing'))
+        return
       }
-      img.onerror = () => {
-        reject(new Error('Failed to load drawing image'))
+
+      const layerCtx = layer.canvas.getContext('2d')
+      if (!layerCtx) {
+        reject(new Error('Could not get layer context'))
+        return
       }
-      img.src = drawing.canvasData
-    })
+
+      // Draw the image onto the layer canvas
+      layerCtx.clearRect(0, 0, layer.canvas.width, layer.canvas.height)
+      layerCtx.drawImage(img, 0, 0, layer.canvas.width, layer.canvas.height)
+
+      // Composite to main canvas
+      const ctx = canvas.getContext('2d')
+      if (!ctx) {
+        reject(new Error('Could not get canvas context'))
+        return
+      }
+
+      ctx.clearRect(0, 0, canvas.width, canvas.height)
+      ctx.drawImage(layer.canvas, 0, 0)
+
+      // Capture history after loading from library
+      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height)
+      store.clearHistory()
+      store.pushHistory(imageData)
+
+      resolve()
+    }
+    img.onerror = () => {
+      reject(new Error('Failed to load drawing image'))
+    }
+    img.src = drawing.canvasData
   }
 
   /**

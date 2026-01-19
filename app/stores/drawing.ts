@@ -7,11 +7,20 @@ export type MosaicRotation = 'none' | 2 | 3 | 4 | 6 | 8
 export type MosaicTileCount = 1 | 2 | 3 | 4 | 5 | 6
 export type TileGridDivisions = 2 | 4 | 8 | 16 | 32
 export type CanvasSize = 'landscape' | 'portrait' | 'square'
-export type Color = 'black' | 'white'
+export type Color = string // Hex color value (e.g., "#000000")
 
 export interface Point {
   x: number
   y: number
+}
+
+export interface Layer {
+  id: string
+  name: string
+  color: string // Hex color
+  visible: boolean
+  order: number
+  canvas: HTMLCanvasElement | null // Off-screen canvas, null until initialized
 }
 
 export interface CanvasDimensions {
@@ -29,10 +38,14 @@ export const CANVAS_DIMENSIONS: Record<CanvasSize, CanvasDimensions> = {
 export const SNAP_DISTANCE = 20 // pixels
 
 export const useDrawingStore = defineStore('drawing', () => {
+  // Layer state
+  const layers = ref<Layer[]>([])
+  const activeLayerId = ref<string>('')
+
   // Drawing state
   const isDrawing = ref(false)
   const drawingTool = ref<DrawingTool>('polygon')
-  const color = ref<Color>('black')
+  const color = ref<Color>('#000000') // Default to black hex
   const startPos = ref<Point | null>(null)
   const savedImageData = ref<ImageData | null>(null)
   const polygonPoints = ref<Point[]>([])
@@ -71,6 +84,8 @@ export const useDrawingStore = defineStore('drawing', () => {
   const currentDimensions = computed(() => CANVAS_DIMENSIONS[canvasSize.value])
   const canUndo = computed(() => historyIndex.value > 0)
   const canRedo = computed(() => historyIndex.value < historyStack.value.length - 1)
+  const activeLayer = computed(() => layers.value.find(l => l.id === activeLayerId.value) || null)
+  const sortedLayers = computed(() => [...layers.value].sort((a, b) => a.order - b.order))
 
   // Actions
   function setDrawingTool(tool: DrawingTool) {
@@ -212,8 +227,123 @@ export const useDrawingStore = defineStore('drawing', () => {
     tileGridDivisions.value = divisions
   }
 
+  // Layer management actions
+  function addLayer(layerColor?: string) {
+    const id = `layer-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+    const order = layers.value.length
+    const newLayer: Layer = {
+      id,
+      name: `Layer ${layers.value.length + 1}`,
+      color: layerColor || '#000000',
+      visible: true,
+      order,
+      canvas: null // Will be initialized in the component
+    }
+    layers.value.push(newLayer)
+    activeLayerId.value = id
+    return newLayer
+  }
+
+  function removeLayer(layerId: string) {
+    // Prevent deleting the last layer
+    if (layers.value.length <= 1) {
+      return false
+    }
+
+    const index = layers.value.findIndex(l => l.id === layerId)
+    if (index === -1) return false
+
+    layers.value.splice(index, 1)
+
+    // If we deleted the active layer, select another one
+    if (activeLayerId.value === layerId) {
+      if (layers.value.length > 0) {
+        activeLayerId.value = layers.value[Math.min(index, layers.value.length - 1)].id
+      }
+    }
+
+    return true
+  }
+
+  function setActiveLayer(layerId: string) {
+    const layer = layers.value.find(l => l.id === layerId)
+    if (layer) {
+      activeLayerId.value = layerId
+      // Update the color to the active layer's color
+      color.value = layer.color
+    }
+  }
+
+  function reorderLayers(fromIndex: number, toIndex: number) {
+    if (fromIndex < 0 || fromIndex >= layers.value.length ||
+        toIndex < 0 || toIndex >= layers.value.length) {
+      return
+    }
+
+    const [movedLayer] = layers.value.splice(fromIndex, 1)
+    layers.value.splice(toIndex, 0, movedLayer)
+
+    // Update order property
+    layers.value.forEach((layer, index) => {
+      layer.order = index
+    })
+  }
+
+  function updateLayerColor(layerId: string, newColor: string) {
+    const layer = layers.value.find(l => l.id === layerId)
+    if (layer) {
+      layer.color = newColor
+      // If this is the active layer, update the drawing color too
+      if (layerId === activeLayerId.value) {
+        color.value = newColor
+      }
+    }
+  }
+
+  function toggleLayerVisibility(layerId: string) {
+    const layer = layers.value.find(l => l.id === layerId)
+    if (layer) {
+      layer.visible = !layer.visible
+    }
+  }
+
+  function updateLayerName(layerId: string, newName: string) {
+    const layer = layers.value.find(l => l.id === layerId)
+    if (layer) {
+      layer.name = newName
+    }
+  }
+
+  function setLayerCanvas(layerId: string, canvas: HTMLCanvasElement) {
+    const layer = layers.value.find(l => l.id === layerId)
+    if (layer) {
+      layer.canvas = canvas
+    }
+  }
+
+  function initializeLayers(dimensions: CanvasDimensions) {
+    // Create initial layer if none exist
+    if (layers.value.length === 0) {
+      const layer = addLayer('#000000')
+      if (layer) {
+        const canvas = document.createElement('canvas')
+        canvas.width = dimensions.width
+        canvas.height = dimensions.height
+        layer.canvas = canvas
+        activeLayerId.value = layer.id
+      }
+    }
+  }
+
+  function clearLayers() {
+    layers.value = []
+    activeLayerId.value = ''
+  }
+
   return {
     // State
+    layers,
+    activeLayerId,
     isDrawing,
     drawingTool,
     color,
@@ -244,6 +374,8 @@ export const useDrawingStore = defineStore('drawing', () => {
     currentDimensions,
     canUndo,
     canRedo,
+    activeLayer,
+    sortedLayers,
 
     // Actions
     setDrawingTool,
@@ -270,6 +402,17 @@ export const useDrawingStore = defineStore('drawing', () => {
     setMosaicTileCountX,
     setMosaicTileCountY,
     setShowMosaicLines,
-    setTileGridDivisions
+    setTileGridDivisions,
+    // Layer actions
+    addLayer,
+    removeLayer,
+    setActiveLayer,
+    reorderLayers,
+    updateLayerColor,
+    toggleLayerVisibility,
+    updateLayerName,
+    setLayerCanvas,
+    initializeLayers,
+    clearLayers
   }
 })

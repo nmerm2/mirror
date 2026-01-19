@@ -56,10 +56,67 @@ function initializeCanvas() {
   const ctx = canvas.getContext('2d')
   if (!ctx) return
 
-  ctx.fillStyle = 'white'
-  ctx.fillRect(0, 0, canvas.width, canvas.height)
+  // Clear the main display canvas (transparent)
+  ctx.clearRect(0, 0, canvas.width, canvas.height)
 
-  // Capture initial blank canvas
+  // Initialize layers if needed
+  store.initializeLayers(dimensions)
+
+  // Ensure each layer has a properly sized canvas
+  store.layers.forEach(layer => {
+    if (!layer.canvas) {
+      const layerCanvas = document.createElement('canvas')
+      layerCanvas.width = dimensions.width
+      layerCanvas.height = dimensions.height
+      store.setLayerCanvas(layer.id, layerCanvas)
+    } else if (layer.canvas.width !== dimensions.width || layer.canvas.height !== dimensions.height) {
+      // Resize existing layer canvas
+      layer.canvas.width = dimensions.width
+      layer.canvas.height = dimensions.height
+    }
+  })
+
+  // Composite all layers to main canvas
+  compositeLayers()
+
+  // Capture initial state for history
+  captureHistoryState()
+}
+
+// Layer compositing - renders all visible layers to the main canvas
+function compositeLayers() {
+  const canvas = canvasEl.value
+  if (!canvas) return
+
+  const ctx = canvas.getContext('2d')
+  if (!ctx) return
+
+  // Clear the main canvas
+  ctx.clearRect(0, 0, canvas.width, canvas.height)
+
+  // Draw each visible layer in order
+  store.sortedLayers.forEach(layer => {
+    if (layer.visible && layer.canvas) {
+      ctx.drawImage(layer.canvas, 0, 0)
+    }
+  })
+}
+
+// Get the active layer's canvas context
+function getActiveLayerContext(): CanvasRenderingContext2D | null {
+  const activeLayer = store.activeLayer
+  if (!activeLayer || !activeLayer.canvas) return null
+  return activeLayer.canvas.getContext('2d')
+}
+
+// Capture current state for history (all layers)
+function captureHistoryState() {
+  const canvas = canvasEl.value
+  if (!canvas) return
+
+  const ctx = canvas.getContext('2d')
+  if (!ctx) return
+
   const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height)
   store.clearHistory()
   store.pushHistory(imageData)
@@ -275,11 +332,11 @@ function handleClick(e: MouseEvent) {
 }
 
 function handlePolygonClick(e: MouseEvent) {
-  const canvas = canvasEl.value
-  if (!canvas) return
-
-  const ctx = canvas.getContext('2d')
+  const ctx = getActiveLayerContext()
   if (!ctx) return
+
+  const activeLayer = store.activeLayer
+  if (!activeLayer || !activeLayer.canvas) return
 
   const pos = getCanvasCoordinates(e)
 
@@ -302,9 +359,16 @@ function handlePolygonClick(e: MouseEvent) {
           drawMirroredPolygon(ctx, store.polygonPoints, true)
         }
 
-        // Capture history after completing polygon
-        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height)
-        store.pushHistory(imageData)
+        // Composite layers and capture history
+        compositeLayers()
+        const canvas = canvasEl.value
+        if (canvas) {
+          const mainCtx = canvas.getContext('2d')
+          if (mainCtx) {
+            const imageData = mainCtx.getImageData(0, 0, canvas.width, canvas.height)
+            store.pushHistory(imageData)
+          }
+        }
 
         store.finishPolygon()
         return
@@ -317,11 +381,11 @@ function handlePolygonClick(e: MouseEvent) {
 
   // Start polygon if first point
   if (!store.isDrawingPolygon) {
-    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height)
+    const imageData = ctx.getImageData(0, 0, activeLayer.canvas.width, activeLayer.canvas.height)
     store.startPolygon(imageData)
   }
 
-  // Redraw
+  // Redraw on active layer
   if (store.savedImageData) {
     ctx.putImageData(store.savedImageData, 0, 0)
   }
@@ -330,6 +394,9 @@ function handlePolygonClick(e: MouseEvent) {
   } else {
     drawMirroredPolygon(ctx, store.polygonPoints, false)
   }
+
+  // Composite to main canvas
+  compositeLayers()
 }
 
 function handleDoubleClick(_e: MouseEvent) {
@@ -338,10 +405,7 @@ function handleDoubleClick(_e: MouseEvent) {
     store.isDrawingPolygon &&
     store.polygonPoints.length >= 3
   ) {
-    const canvas = canvasEl.value
-    if (!canvas) return
-
-    const ctx = canvas.getContext('2d')
+    const ctx = getActiveLayerContext()
     if (!ctx) return
 
     if (store.savedImageData) {
@@ -353,9 +417,16 @@ function handleDoubleClick(_e: MouseEvent) {
       drawMirroredPolygon(ctx, store.polygonPoints, true)
     }
 
-    // Capture history after completing polygon
-    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height)
-    store.pushHistory(imageData)
+    // Composite layers and capture history
+    compositeLayers()
+    const canvas = canvasEl.value
+    if (canvas) {
+      const mainCtx = canvas.getContext('2d')
+      if (mainCtx) {
+        const imageData = mainCtx.getImageData(0, 0, canvas.width, canvas.height)
+        store.pushHistory(imageData)
+      }
+    }
 
     store.finishPolygon()
   }
@@ -372,11 +443,11 @@ function handleMouseDown(e: MouseEvent) {
 function startDrawing(e: MouseEvent) {
   if (e.shiftKey || e.button === 1) return
 
-  const canvas = canvasEl.value
-  if (!canvas) return
-
-  const ctx = canvas.getContext('2d')
+  const ctx = getActiveLayerContext()
   if (!ctx) return
+
+  const activeLayer = store.activeLayer
+  if (!activeLayer || !activeLayer.canvas) return
 
   const pos = getCanvasCoordinates(e)
 
@@ -385,7 +456,7 @@ function startDrawing(e: MouseEvent) {
     return
   }
 
-  const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height)
+  const imageData = ctx.getImageData(0, 0, activeLayer.canvas.width, activeLayer.canvas.height)
   store.startShape(pos, imageData)
 }
 
@@ -398,11 +469,11 @@ function draw(e: MouseEvent) {
   const pos = getCanvasCoordinates(e)
   store.currentMousePos = pos
 
-  const canvas = canvasEl.value
-  if (!canvas) return
-
-  const ctx = canvas.getContext('2d')
+  const ctx = getActiveLayerContext()
   if (!ctx) return
+
+  const activeLayer = store.activeLayer
+  if (!activeLayer || !activeLayer.canvas) return
 
   // Polygon preview
   if (store.drawingTool === 'polygon' && store.isDrawingPolygon) {
@@ -418,7 +489,10 @@ function draw(e: MouseEvent) {
     // Draw preview line
     if (store.polygonPoints.length > 0) {
       const lastPoint = store.polygonPoints[store.polygonPoints.length - 1]
-      if (!lastPoint) return
+      if (!lastPoint) {
+        compositeLayers()
+        return
+      }
 
       if (store.mirrorMode === 'mosaic') {
         // For mosaic mode, get all transformed points
@@ -450,20 +524,20 @@ function draw(e: MouseEvent) {
 
         if (store.mirrorMode === 'horizontal' || store.mirrorMode === 'both') {
           previewSets.push({
-            from: { x: canvas.width - lastPoint.x, y: lastPoint.y },
-            to: { x: canvas.width - pos.x, y: pos.y }
+            from: { x: activeLayer.canvas.width - lastPoint.x, y: lastPoint.y },
+            to: { x: activeLayer.canvas.width - pos.x, y: pos.y }
           })
         }
         if (store.mirrorMode === 'vertical' || store.mirrorMode === 'both') {
           previewSets.push({
-            from: { x: lastPoint.x, y: canvas.height - lastPoint.y },
-            to: { x: pos.x, y: canvas.height - pos.y }
+            from: { x: lastPoint.x, y: activeLayer.canvas.height - lastPoint.y },
+            to: { x: pos.x, y: activeLayer.canvas.height - pos.y }
           })
         }
         if (store.mirrorMode === 'both') {
           previewSets.push({
-            from: { x: canvas.width - lastPoint.x, y: canvas.height - lastPoint.y },
-            to: { x: canvas.width - pos.x, y: canvas.height - pos.y }
+            from: { x: activeLayer.canvas.width - lastPoint.x, y: activeLayer.canvas.height - lastPoint.y },
+            to: { x: activeLayer.canvas.width - pos.x, y: activeLayer.canvas.height - pos.y }
           })
         }
 
@@ -483,6 +557,9 @@ function draw(e: MouseEvent) {
         ctx.globalAlpha = 1.0
       }
     }
+
+    // Composite to main canvas for preview
+    compositeLayers()
     return
   }
 
@@ -499,6 +576,9 @@ function draw(e: MouseEvent) {
     }
   }
   ctx.globalAlpha = 1.0
+
+  // Composite to main canvas for preview
+  compositeLayers()
 }
 
 function handleMouseUp(e: MouseEvent) {
@@ -517,10 +597,7 @@ function stopDrawing(e: MouseEvent) {
 
   if (store.drawingTool === 'polygon' || !store.isDrawing) return
 
-  const canvas = canvasEl.value
-  if (!canvas) return
-
-  const ctx = canvas.getContext('2d')
+  const ctx = getActiveLayerContext()
   if (!ctx) return
 
   const pos = getCanvasCoordinates(e)
@@ -535,9 +612,16 @@ function stopDrawing(e: MouseEvent) {
       drawMirroredShape(ctx, store.startPos.x, store.startPos.y, pos.x, pos.y, store.drawingTool)
     }
 
-    // Capture history after completing shape
-    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height)
-    store.pushHistory(imageData)
+    // Composite layers and capture history
+    compositeLayers()
+    const canvas = canvasEl.value
+    if (canvas) {
+      const mainCtx = canvas.getContext('2d')
+      if (mainCtx) {
+        const imageData = mainCtx.getImageData(0, 0, canvas.width, canvas.height)
+        store.pushHistory(imageData)
+      }
+    }
   }
 
   store.finishShape()
@@ -582,46 +666,63 @@ function clearCanvas() {
     return
   }
 
+  // Clear all layers
+  store.layers.forEach(layer => {
+    if (layer.canvas) {
+      const ctx = layer.canvas.getContext('2d')
+      if (ctx) {
+        ctx.clearRect(0, 0, layer.canvas.width, layer.canvas.height)
+      }
+    }
+  })
+
+  // Composite and capture history
+  compositeLayers()
   const canvas = canvasEl.value
-  if (!canvas) return
-
-  const ctx = canvas.getContext('2d')
-  if (!ctx) return
-
-  ctx.fillStyle = 'white'
-  ctx.fillRect(0, 0, canvas.width, canvas.height)
-
-  // Capture history after clearing
-  const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height)
-  store.pushHistory(imageData)
+  if (canvas) {
+    const ctx = canvas.getContext('2d')
+    if (ctx) {
+      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height)
+      store.pushHistory(imageData)
+    }
+  }
 
   store.cancelPolygon()
 }
 
 // Invert colors (negative)
 function invertColors() {
+  // Invert colors on all layers
+  store.layers.forEach(layer => {
+    if (layer.canvas) {
+      const ctx = layer.canvas.getContext('2d')
+      if (!ctx) return
+
+      const imageData = ctx.getImageData(0, 0, layer.canvas.width, layer.canvas.height)
+      const data = imageData.data
+
+      // Invert each pixel
+      for (let i = 0; i < data.length; i += 4) {
+        data[i] = 255 - data[i]         // Red
+        data[i + 1] = 255 - data[i + 1] // Green
+        data[i + 2] = 255 - data[i + 2] // Blue
+        // data[i + 3] is alpha, leave unchanged
+      }
+
+      ctx.putImageData(imageData, 0, 0)
+    }
+  })
+
+  // Composite and capture history
+  compositeLayers()
   const canvas = canvasEl.value
-  if (!canvas) return
-
-  const ctx = canvas.getContext('2d')
-  if (!ctx) return
-
-  const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height)
-  const data = imageData.data
-
-  // Invert each pixel
-  for (let i = 0; i < data.length; i += 4) {
-    data[i] = 255 - data[i]         // Red
-    data[i + 1] = 255 - data[i + 1] // Green
-    data[i + 2] = 255 - data[i + 2] // Blue
-    // data[i + 3] is alpha, leave unchanged
+  if (canvas) {
+    const ctx = canvas.getContext('2d')
+    if (ctx) {
+      const newImageData = ctx.getImageData(0, 0, canvas.width, canvas.height)
+      store.pushHistory(newImageData)
+    }
   }
-
-  ctx.putImageData(imageData, 0, 0)
-
-  // Capture history after inverting
-  const newImageData = ctx.getImageData(0, 0, canvas.width, canvas.height)
-  store.pushHistory(newImageData)
 }
 
 // Undo/Redo operations
@@ -629,12 +730,27 @@ function performUndo() {
   const canvas = canvasEl.value
   if (!canvas) return
 
-  const ctx = canvas.getContext('2d')
-  if (!ctx) return
-
   const imageData = store.undo()
   if (imageData) {
-    ctx.putImageData(imageData, 0, 0)
+    // Clear all layers and put the undone state on the active layer
+    // This "flattens" the undo to the active layer
+    store.layers.forEach(layer => {
+      if (layer.canvas) {
+        const ctx = layer.canvas.getContext('2d')
+        if (ctx) {
+          ctx.clearRect(0, 0, layer.canvas.width, layer.canvas.height)
+        }
+      }
+    })
+
+    // Put the undone image data on the active layer
+    const activeLayerCtx = getActiveLayerContext()
+    if (activeLayerCtx) {
+      activeLayerCtx.putImageData(imageData, 0, 0)
+    }
+
+    // Composite to main canvas
+    compositeLayers()
 
     // Cancel any active polygon drawing
     if (store.isDrawingPolygon) {
@@ -647,12 +763,26 @@ function performRedo() {
   const canvas = canvasEl.value
   if (!canvas) return
 
-  const ctx = canvas.getContext('2d')
-  if (!ctx) return
-
   const imageData = store.redo()
   if (imageData) {
-    ctx.putImageData(imageData, 0, 0)
+    // Clear all layers and put the redone state on the active layer
+    store.layers.forEach(layer => {
+      if (layer.canvas) {
+        const ctx = layer.canvas.getContext('2d')
+        if (ctx) {
+          ctx.clearRect(0, 0, layer.canvas.width, layer.canvas.height)
+        }
+      }
+    })
+
+    // Put the redone image data on the active layer
+    const activeLayerCtx = getActiveLayerContext()
+    if (activeLayerCtx) {
+      activeLayerCtx.putImageData(imageData, 0, 0)
+    }
+
+    // Composite to main canvas
+    compositeLayers()
 
     // Cancel any active polygon drawing
     if (store.isDrawingPolygon) {
@@ -663,14 +793,13 @@ function performRedo() {
 
 // Cancel polygon
 function cancelPolygon() {
-  const canvas = canvasEl.value
-  if (!canvas) return
-
-  const ctx = canvas.getContext('2d')
+  const ctx = getActiveLayerContext()
   if (!ctx) return
 
   if (store.savedImageData) {
     ctx.putImageData(store.savedImageData, 0, 0)
+    // Composite to main canvas
+    compositeLayers()
   }
 
   store.cancelPolygon()
