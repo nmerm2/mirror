@@ -231,13 +231,20 @@ export const useDrawingStore = defineStore('drawing', () => {
   function addLayer(layerColor?: string) {
     const id = `layer-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
     const order = layers.value.length
+
+    // Create the canvas for this layer
+    const layerCanvas = document.createElement('canvas')
+    const dimensions = currentDimensions.value
+    layerCanvas.width = dimensions.width
+    layerCanvas.height = dimensions.height
+
     const newLayer: Layer = {
       id,
       name: `Layer ${layers.value.length + 1}`,
       color: layerColor || '#000000',
       visible: true,
       order,
-      canvas: null // Will be initialized in the component
+      canvas: layerCanvas
     }
     layers.value.push(newLayer)
     activeLayerId.value = id
