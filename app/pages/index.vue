@@ -122,6 +122,22 @@ function captureHistoryState() {
   store.pushHistory(imageData)
 }
 
+// Helper function to setup drawing mode (draw or erase)
+function setupDrawingMode(ctx: CanvasRenderingContext2D) {
+  const isEraser = store.color.toUpperCase() === '#FFFFFF'
+  if (isEraser) {
+    // Eraser mode: remove pixels (make transparent)
+    ctx.globalCompositeOperation = 'destination-out'
+    ctx.fillStyle = 'rgba(0,0,0,1)' // Color doesn't matter for destination-out
+    ctx.strokeStyle = 'rgba(0,0,0,1)'
+  } else {
+    // Normal drawing mode
+    ctx.globalCompositeOperation = 'source-over'
+    ctx.fillStyle = store.color
+    ctx.strokeStyle = store.color
+  }
+}
+
 // Drawing functions
 function drawMirroredShape(
   ctx: CanvasRenderingContext2D,
@@ -163,7 +179,8 @@ function drawMirroredShape(
     })
   }
 
-  ctx.fillStyle = store.color
+  // Setup drawing/erasing mode
+  setupDrawingMode(ctx)
 
   points.forEach((point) => {
     ctx.beginPath()
@@ -179,6 +196,9 @@ function drawMirroredShape(
       ctx.fillRect(point.x1, point.y1, width, height)
     }
   })
+
+  // Reset composite operation
+  ctx.globalCompositeOperation = 'source-over'
 }
 
 function drawMirroredPolygon(
@@ -219,9 +239,13 @@ function drawMirroredPolygon(
 
     if (closeShape) {
       ctx.closePath()
-      ctx.fillStyle = store.color
+      // Setup drawing/erasing mode
+      setupDrawingMode(ctx)
       ctx.fill()
+      // Reset composite operation
+      ctx.globalCompositeOperation = 'source-over'
     } else {
+      // For preview, always use normal drawing mode with current color
       ctx.strokeStyle = store.color
       ctx.lineWidth = 4 / store.zoom
       ctx.stroke()
@@ -254,7 +278,8 @@ function drawMosaicShape(
   // Get all transformed points for start position
   const startPoints = getAllTilePoints(x1, y1)
 
-  ctx.fillStyle = store.color
+  // Setup drawing/erasing mode
+  setupDrawingMode(ctx)
 
   startPoints.forEach((startPoint) => {
     // Calculate the offset from original to transformed start point
@@ -278,6 +303,9 @@ function drawMosaicShape(
       ctx.fillRect(startPoint.x, startPoint.y, width, height)
     }
   })
+
+  // Reset composite operation
+  ctx.globalCompositeOperation = 'source-over'
 }
 
 function drawMosaicPolygon(
@@ -303,9 +331,13 @@ function drawMosaicPolygon(
 
     if (closeShape) {
       ctx.closePath()
-      ctx.fillStyle = store.color
+      // Setup drawing/erasing mode
+      setupDrawingMode(ctx)
       ctx.fill()
+      // Reset composite operation
+      ctx.globalCompositeOperation = 'source-over'
     } else {
+      // For preview, always use normal drawing mode with current color
       ctx.strokeStyle = store.color
       ctx.lineWidth = 4 / store.zoom
       ctx.stroke()

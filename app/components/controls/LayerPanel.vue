@@ -4,7 +4,8 @@ import { useDrawingStore } from '~/stores/drawing'
 const store = useDrawingStore()
 
 function addNewLayer() {
-  store.addLayer()
+  // Add layer with current selected color
+  store.addLayer(store.color)
 }
 
 function deleteLayer(layerId: string) {
