@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
+import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
 import { useDrawingStore, SNAP_DISTANCE, type Point } from '~/stores/drawing'
 import { useFileOperations } from '~/composables/useFileOperations'
 import { useCoordinateTransform } from '~/composables/useCoordinateTransform'
@@ -940,6 +940,16 @@ function handleBeforeUnload(e: BeforeUnloadEvent) {
     e.returnValue = ''
   }
 }
+
+// Watch for layer changes and re-composite
+watch(
+  () => store.layers.map(l => ({ visible: l.visible, order: l.order })),
+  () => {
+    // Re-composite when layer visibility or order changes
+    compositeLayers()
+  },
+  { deep: true }
+)
 
 // Lifecycle
 onMounted(() => {
